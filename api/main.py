@@ -1,5 +1,4 @@
 import os
-
 import psycopg2
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -151,6 +150,150 @@ def kpi_summary():
                 "avg_active_users": (
                     float(row[4]) if row[4] is not None else None
                 ),
+            }
+
+    finally:
+        connection.close()
+
+@app.get("/alarms/latest")
+def latest_alarms(limit: int = 20):
+    connection = get_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    timestamp,
+                    cell_id,
+                    radio,
+                    alarm_type,
+                    severity,
+                    metric,
+                    metric_value,
+                    threshold_value,
+                    message,
+                    status
+                FROM network_alarms
+                ORDER BY timestamp DESC
+                LIMIT %s;
+                """,
+                (limit,),
+            )
+
+            rows = cursor.fetchall()
+
+            return [
+                {
+                    "timestamp": row[0],
+                    "cell_id": row[1],
+                    "radio": row[2],
+                    "alarm_type": row[3],
+                    "severity": row[4],
+                    "metric": row[5],
+                    "metric_value": row[6],
+                    "threshold_value": row[7],
+                    "message": row[8],
+                    "status": row[9],
+                }
+                for row in rows
+            ]
+
+    finally:
+        connection.close()
+
+
+@app.get("/alarms/cell/{cell_id}")
+def cell_alarms(cell_id: int, limit: int = 20):
+    connection = get_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    timestamp,
+                    cell_id,
+                    radio,
+                    alarm_type,
+                    severity,
+                    metric,
+                    metric_value,
+                    threshold_value,
+                    message,
+                    status
+                FROM network_alarms
+                WHERE cell_id = %s
+                ORDER BY timestamp DESC
+                LIMIT %s;
+                """,
+                (cell_id, limit),
+            )
+
+            rows = cursor.fetchall()
+
+            if not rows:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No alarms found for cell {cell_id}",
+                )
+
+            return [
+                {
+                    "timestamp": row[0],
+                    "cell_id": row[1],
+                    "radio": row[2],
+                    "alarm_type": row[3],
+                    "severity": row[4],
+                    "metric": row[5],
+                    "metric_value": row[6],
+                    "threshold_value": row[7],
+                    "message": row[8],
+                    "status": row[9],
+                }
+                for row in rows
+            ]
+
+    finally:
+        connection.close()
+
+
+@app.get("/alarms/summary")
+def alarm_summary():
+    connection = get_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    COUNT(*) AS total_alarms,
+                    COUNT(*) FILTER (
+                        WHERE severity = 'CRITICAL'
+                    ) AS critical_alarms,
+                    COUNT(*) FILTER (
+                        WHERE severity = 'MAJOR'
+                    ) AS major_alarms,
+                    COUNT(*) FILTER (
+                        WHERE severity = 'MINOR'
+                    ) AS minor_alarms,
+                    COUNT(*) FILTER (
+                        WHERE status = 'OPEN'
+                    ) AS open_alarms,
+                    COUNT(DISTINCT cell_id) AS affected_cells
+                FROM network_alarms;
+                """
+            )
+
+            row = cursor.fetchone()
+
+            return {
+                "total_alarms": row[0],
+                "critical_alarms": row[1],
+                "major_alarms": row[2],
+                "minor_alarms": row[3],
+                "open_alarms": row[4],
+                "affected_cells": row[5],
             }
 
     finally:
