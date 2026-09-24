@@ -1,0 +1,495 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(255, 96, 96, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Critical Signals",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        WITH latest AS (\n            SELECT DISTINCT ON (cell_db_id)\n                *\n            FROM network_kpis\n            ORDER BY cell_db_id, timestamp DESC\n        )\n        SELECT COUNT(*) AS value\n        FROM latest\n        WHERE availability < 95\n           OR latency_ms > 120\n           OR packet_loss_pct > 5\n           OR prb_utilization_pct > 95\n           OR call_drop_rate > 5\n           OR rrc_success_rate < 90\n           OR handover_success_rate < 90;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Warning Signals",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        WITH latest AS (\n            SELECT DISTINCT ON (cell_db_id)\n                *\n            FROM network_kpis\n            ORDER BY cell_db_id, timestamp DESC\n        )\n        SELECT COUNT(*) AS value\n        FROM latest\n        WHERE (\n            availability < 98\n            OR latency_ms > 80\n            OR packet_loss_pct > 2\n            OR prb_utilization_pct > 90\n            OR call_drop_rate > 2\n            OR rrc_success_rate < 95\n            OR handover_success_rate < 94\n        )\n        AND NOT (\n            availability < 95\n            OR latency_ms > 120\n            OR packet_loss_pct > 5\n            OR prb_utilization_pct > 95\n            OR call_drop_rate > 5\n            OR rrc_success_rate < 90\n            OR handover_success_rate < 90\n        );\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Cells Affected",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        WITH latest AS (\n            SELECT DISTINCT ON (cell_db_id)\n                *\n            FROM network_kpis\n            ORDER BY cell_db_id, timestamp DESC\n        )\n        SELECT COUNT(*) AS value\n        FROM latest\n        WHERE availability < 98\n           OR latency_ms > 80\n           OR packet_loss_pct > 2\n           OR prb_utilization_pct > 90\n           OR call_drop_rate > 2\n           OR rrc_success_rate < 95\n           OR handover_success_rate < 94;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Network Availability",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT COALESCE(AVG(availability), 0) AS value\n        FROM network_kpis\n        WHERE $__timeFilter(timestamp);\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Current Network Alert Signals",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        WITH latest AS (\n            SELECT DISTINCT ON (cell_db_id)\n                *\n            FROM network_kpis\n            ORDER BY cell_db_id, timestamp DESC\n        ),\n        signals AS (\n            SELECT cell_id, radio, timestamp,\n                   'AVAILABILITY' AS alarm,\n                   ROUND(availability::numeric, 2) AS value,\n                   '%' AS unit,\n                   CASE WHEN availability < 95 THEN 'CRITICAL' ELSE 'WARNING' END AS severity\n            FROM latest\n            WHERE availability < 98\n\n            UNION ALL\n\n            SELECT cell_id, radio, timestamp,\n                   'HIGH LATENCY',\n                   ROUND(latency_ms::numeric, 2),\n                   'ms',\n                   CASE WHEN latency_ms > 120 THEN 'CRITICAL' ELSE 'WARNING' END\n            FROM latest\n            WHERE latency_ms > 80\n\n            UNION ALL\n\n            SELECT cell_id, radio, timestamp,\n                   'PACKET LOSS',\n                   ROUND(packet_loss_pct::numeric, 2),\n                   '%',\n                   CASE WHEN packet_loss_pct > 5 THEN 'CRITICAL' ELSE 'WARNING' END\n            FROM latest\n            WHERE packet_loss_pct > 2\n\n            UNION ALL\n\n            SELECT cell_id, radio, timestamp,\n                   'HIGH PRB UTILIZATION',\n                   ROUND(prb_utilization_pct::numeric, 2),\n                   '%',\n                   CASE WHEN prb_utilization_pct > 95 THEN 'CRITICAL' ELSE 'WARNING' END\n            FROM latest\n            WHERE prb_utilization_pct > 90\n\n            UNION ALL\n\n            SELECT cell_id, radio, timestamp,\n                   'CALL DROP RATE',\n                   ROUND(call_drop_rate::numeric, 2),\n                   '%',\n                   CASE WHEN call_drop_rate > 5 THEN 'CRITICAL' ELSE 'WARNING' END\n            FROM latest\n            WHERE call_drop_rate > 2\n\n            UNION ALL\n\n            SELECT cell_id, radio, timestamp,\n                   'RRC SUCCESS',\n                   ROUND(rrc_success_rate::numeric, 2),\n                   '%',\n                   CASE WHEN rrc_success_rate < 90 THEN 'CRITICAL' ELSE 'WARNING' END\n            FROM latest\n            WHERE rrc_success_rate < 95\n\n            UNION ALL\n\n            SELECT cell_id, radio, timestamp,\n                   'HANDOVER SUCCESS',\n                   ROUND(handover_success_rate::numeric, 2),\n                   '%',\n                   CASE WHEN handover_success_rate < 90 THEN 'CRITICAL' ELSE 'WARNING' END\n            FROM latest\n            WHERE handover_success_rate < 94\n        )\n        SELECT\n            timestamp AS \"Last Seen\",\n            cell_id AS \"Cell\",\n            radio AS \"Radio\",\n            severity AS \"Severity\",\n            alarm AS \"Alarm\",\n            value AS \"Value\",\n            unit AS \"Unit\"\n        FROM signals\n        ORDER BY\n            CASE severity\n                WHEN 'CRITICAL' THEN 1\n                ELSE 2\n            END,\n            timestamp DESC\n        LIMIT 50;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Latency \u2014 Alarm Context",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT\n            date_trunc('minute', timestamp) AS time,\n            AVG(latency_ms) AS \"Latency\",\n            80 AS \"Warning Threshold\",\n            120 AS \"Critical Threshold\"\n        FROM network_kpis\n        WHERE $__timeFilter(timestamp)\n        GROUP BY 1\n        ORDER BY 1;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "PRB Utilization \u2014 Congestion Context",
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT\n            date_trunc('minute', timestamp) AS time,\n            AVG(prb_utilization_pct) AS \"PRB\",\n            90 AS \"Warning Threshold\",\n            95 AS \"Critical Threshold\"\n        FROM network_kpis\n        WHERE $__timeFilter(timestamp)\n        GROUP BY 1\n        ORDER BY 1;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Packet Loss \u2014 Alarm Context",
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT\n            date_trunc('minute', timestamp) AS time,\n            AVG(packet_loss_pct) AS \"Packet Loss\",\n            2 AS \"Warning Threshold\",\n            5 AS \"Critical Threshold\"\n        FROM network_kpis\n        WHERE $__timeFilter(timestamp)\n        GROUP BY 1\n        ORDER BY 1;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Call Drop Rate \u2014 Alarm Context",
+      "gridPos": {
+        "x": 12,
+        "y": 22,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT\n            date_trunc('minute', timestamp) AS time,\n            AVG(call_drop_rate) AS \"Call Drop\",\n            2 AS \"Warning Threshold\",\n            5 AS \"Critical Threshold\"\n        FROM network_kpis\n        WHERE $__timeFilter(timestamp)\n        GROUP BY 1\n        ORDER BY 1;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "telecom",
+    "alarms",
+    "incidents",
+    "thresholds"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "6h",
+      "12h",
+      "24h"
+    ]
+  },
+  "timezone": "browser",
+  "title": "04 \u2014 Alarm Signals",
+  "uid": "telecom-alarm-signals",
+  "version": 1,
+  "weekStart": "",
+  "folderUid": "telecom-noc-folder"
+}

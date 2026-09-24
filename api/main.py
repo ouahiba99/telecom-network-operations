@@ -1,0 +1,157 @@
+import os
+
+import psycopg2
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+
+load_dotenv()
+
+app = FastAPI(
+    title="Telecom Network Operations API",
+    version="1.0.0",
+    description="API for telecom network KPI monitoring",
+)
+
+
+def get_connection():
+    return psycopg2.connect(
+        host=os.getenv("POSTGRES_HOST", "127.0.0.1"),
+        port=os.getenv("POSTGRES_PORT", "5433"),
+        dbname=os.getenv("POSTGRES_DB", "telecom_network"),
+        user=os.getenv("POSTGRES_USER", "telecom"),
+        password=os.getenv("POSTGRES_PASSWORD", "telecom"),
+    )
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/kpis/latest")
+def latest_kpis(limit: int = 20):
+    connection = get_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    timestamp,
+                    cell_id,
+                    radio,
+                    latency_ms,
+                    packet_loss_pct,
+                    throughput_mbps,
+                    active_users
+                FROM network_kpis
+                ORDER BY timestamp DESC
+                LIMIT %s;
+                """,
+                (limit,),
+            )
+
+            rows = cursor.fetchall()
+
+            return [
+                {
+                    "timestamp": row[0],
+                    "cell_id": row[1],
+                    "radio": row[2],
+                    "latency_ms": row[3],
+                    "packet_loss_pct": row[4],
+                    "throughput_mbps": row[5],
+                    "active_users": row[6],
+                }
+                for row in rows
+            ]
+
+    finally:
+        connection.close()
+
+
+@app.get("/kpis/cell/{cell_id}")
+def cell_kpis(cell_id: int, limit: int = 20):
+    connection = get_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    timestamp,
+                    cell_id,
+                    radio,
+                    latency_ms,
+                    packet_loss_pct,
+                    throughput_mbps,
+                    active_users
+                FROM network_kpis
+                WHERE cell_id = %s
+                ORDER BY timestamp DESC
+                LIMIT %s;
+                """,
+                (cell_id, limit),
+            )
+
+            rows = cursor.fetchall()
+
+            if not rows:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No KPI data found for cell {cell_id}",
+                )
+
+            return [
+                {
+                    "timestamp": row[0],
+                    "cell_id": row[1],
+                    "radio": row[2],
+                    "latency_ms": row[3],
+                    "packet_loss_pct": row[4],
+                    "throughput_mbps": row[5],
+                    "active_users": row[6],
+                }
+                for row in rows
+            ]
+
+    finally:
+        connection.close()
+
+
+@app.get("/kpis/summary")
+def kpi_summary():
+    connection = get_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    COUNT(*) AS total_measurements,
+                    ROUND(AVG(latency_ms)::numeric, 2) AS avg_latency_ms,
+                    ROUND(AVG(packet_loss_pct)::numeric, 2) AS avg_packet_loss_pct,
+                    ROUND(AVG(throughput_mbps)::numeric, 2) AS avg_throughput_mbps,
+                    ROUND(AVG(active_users)::numeric, 2) AS avg_active_users
+                FROM network_kpis;
+                """
+            )
+
+            row = cursor.fetchone()
+
+            return {
+                "total_measurements": row[0],
+                "avg_latency_ms": float(row[1]) if row[1] is not None else None,
+                "avg_packet_loss_pct": (
+                    float(row[2]) if row[2] is not None else None
+                ),
+                "avg_throughput_mbps": (
+                    float(row[3]) if row[3] is not None else None
+                ),
+                "avg_active_users": (
+                    float(row[4]) if row[4] is not None else None
+                ),
+            }
+
+    finally:
+        connection.close()

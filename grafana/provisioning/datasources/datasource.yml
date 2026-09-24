@@ -1,0 +1,21 @@
+apiVersion: 1
+
+datasources:
+  - name: Telecom PostgreSQL
+    uid: telecom-postgres
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    user: telecom
+    secureJsonData:
+      password: telecom
+    jsonData:
+      database: telecom_network
+      sslmode: disable
+      postgresVersion: 16
+      timescaledb: false
+      maxOpenConns: 10
+      maxIdleConns: 5
+      connMaxLifetime: 14400
+    isDefault: true
+    editable: false
