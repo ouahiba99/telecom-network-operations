@@ -23,7 +23,7 @@
     {
       "id": 1,
       "type": "stat",
-      "title": "Critical Alarms",
+      "title": "Critical Signals",
       "gridPos": {
         "x": 0,
         "y": 0,
@@ -43,7 +43,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS value\n        FROM network_alarms\n        WHERE severity = 'CRITICAL'\n          AND $__timeFilter(timestamp);"
+          "rawSql": "\n        WITH latest AS (\n            SELECT DISTINCT ON (cell_db_id)\n                *\n            FROM network_kpis\n            ORDER BY cell_db_id, timestamp DESC\n        )\n        SELECT COUNT(*) AS value\n        FROM latest\n        WHERE availability < 95\n           OR latency_ms > 120\n           OR packet_loss_pct > 5\n           OR prb_utilization_pct > 95\n           OR call_drop_rate > 5\n           OR rrc_success_rate < 90\n           OR handover_success_rate < 90;\n        "
         }
       ],
       "fieldConfig": {
@@ -71,7 +71,7 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Major Alarms",
+      "title": "Warning Signals",
       "gridPos": {
         "x": 6,
         "y": 0,
@@ -91,7 +91,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS value\n        FROM network_alarms\n        WHERE severity = 'MAJOR'\n          AND $__timeFilter(timestamp);"
+          "rawSql": "\n        WITH latest AS (\n            SELECT DISTINCT ON (cell_db_id)\n                *\n            FROM network_kpis\n            ORDER BY cell_db_id, timestamp DESC\n        )\n        SELECT COUNT(*) AS value\n        FROM latest\n        WHERE (\n            availability < 98\n            OR latency_ms > 80\n            OR packet_loss_pct > 2\n            OR prb_utilization_pct > 90\n            OR call_drop_rate > 2\n            OR rrc_success_rate < 95\n            OR handover_success_rate < 94\n        )\n        AND NOT (\n            availability < 95\n            OR latency_ms > 120\n            OR packet_loss_pct > 5\n            OR prb_utilization_pct > 95\n            OR call_drop_rate > 5\n            OR rrc_success_rate < 90\n            OR handover_success_rate < 90\n        );\n        "
         }
       ],
       "fieldConfig": {
@@ -119,7 +119,7 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "Affected Cells",
+      "title": "Cells Affected",
       "gridPos": {
         "x": 12,
         "y": 0,
@@ -139,7 +139,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(DISTINCT cell_id) AS value\n        FROM network_alarms\n        WHERE $__timeFilter(timestamp);"
+          "rawSql": "\n        WITH latest AS (\n            SELECT DISTINCT ON (cell_db_id)\n                *\n            FROM network_kpis\n            ORDER BY cell_db_id, timestamp DESC\n        )\n        SELECT COUNT(*) AS value\n        FROM latest\n        WHERE availability < 98\n           OR latency_ms > 80\n           OR packet_loss_pct > 2\n           OR prb_utilization_pct > 90\n           OR call_drop_rate > 2\n           OR rrc_success_rate < 95\n           OR handover_success_rate < 94;\n        "
         }
       ],
       "fieldConfig": {
@@ -215,7 +215,7 @@
     {
       "id": 5,
       "type": "table",
-      "title": "Live Network Alarms",
+      "title": "Current Network Alert Signals",
       "gridPos": {
         "x": 0,
         "y": 5,
@@ -235,7 +235,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n            timestamp AS \"Last Seen\",\n            cell_id AS \"Cell\",\n            radio AS \"Radio\",\n            severity AS \"Severity\",\n            alarm_type AS \"Alarm\",\n            metric AS \"Metric\",\n            ROUND(metric_value::numeric, 2) AS \"Value\",\n            ROUND(threshold_value::numeric, 2) AS \"Threshold\",\n            status AS \"Status\",\n            message AS \"Message\"\n        FROM network_alarms\n        WHERE $__timeFilter(timestamp)\n        ORDER BY\n            CASE severity\n                WHEN 'CRITICAL' THEN 1\n                WHEN 'MAJOR' THEN 2\n                WHEN 'MINOR' THEN 3\n                ELSE 4\n            END,\n            timestamp DESC\n        LIMIT 50;"
+          "rawSql": "\n        WITH latest AS (\n            SELECT DISTINCT ON (cell_db_id)\n                *\n            FROM network_kpis\n            ORDER BY cell_db_id, timestamp DESC\n        ),\n        signals AS (\n            SELECT cell_id, radio, timestamp,\n                   'AVAILABILITY' AS alarm,\n                   ROUND(availability::numeric, 2) AS value,\n                   '%' AS unit,\n                   CASE WHEN availability < 95 THEN 'CRITICAL' ELSE 'WARNING' END AS severity\n            FROM latest\n            WHERE availability < 98\n\n            UNION ALL\n\n            SELECT cell_id, radio, timestamp,\n                   'HIGH LATENCY',\n                   ROUND(latency_ms::numeric, 2),\n                   'ms',\n                   CASE WHEN latency_ms > 120 THEN 'CRITICAL' ELSE 'WARNING' END\n            FROM latest\n            WHERE latency_ms > 80\n\n            UNION ALL\n\n            SELECT cell_id, radio, timestamp,\n                   'PACKET LOSS',\n                   ROUND(packet_loss_pct::numeric, 2),\n                   '%',\n                   CASE WHEN packet_loss_pct > 5 THEN 'CRITICAL' ELSE 'WARNING' END\n            FROM latest\n            WHERE packet_loss_pct > 2\n\n            UNION ALL\n\n            SELECT cell_id, radio, timestamp,\n                   'HIGH PRB UTILIZATION',\n                   ROUND(prb_utilization_pct::numeric, 2),\n                   '%',\n                   CASE WHEN prb_utilization_pct > 95 THEN 'CRITICAL' ELSE 'WARNING' END\n            FROM latest\n            WHERE prb_utilization_pct > 90\n\n            UNION ALL\n\n            SELECT cell_id, radio, timestamp,\n                   'CALL DROP RATE',\n                   ROUND(call_drop_rate::numeric, 2),\n                   '%',\n                   CASE WHEN call_drop_rate > 5 THEN 'CRITICAL' ELSE 'WARNING' END\n            FROM latest\n            WHERE call_drop_rate > 2\n\n            UNION ALL\n\n            SELECT cell_id, radio, timestamp,\n                   'RRC SUCCESS',\n                   ROUND(rrc_success_rate::numeric, 2),\n                   '%',\n                   CASE WHEN rrc_success_rate < 90 THEN 'CRITICAL' ELSE 'WARNING' END\n            FROM latest\n            WHERE rrc_success_rate < 95\n\n            UNION ALL\n\n            SELECT cell_id, radio, timestamp,\n                   'HANDOVER SUCCESS',\n                   ROUND(handover_success_rate::numeric, 2),\n                   '%',\n                   CASE WHEN handover_success_rate < 90 THEN 'CRITICAL' ELSE 'WARNING' END\n            FROM latest\n            WHERE handover_success_rate < 94\n        )\n        SELECT\n            timestamp AS \"Last Seen\",\n            cell_id AS \"Cell\",\n            radio AS \"Radio\",\n            severity AS \"Severity\",\n            alarm AS \"Alarm\",\n            value AS \"Value\",\n            unit AS \"Unit\"\n        FROM signals\n        ORDER BY\n            CASE severity\n                WHEN 'CRITICAL' THEN 1\n                ELSE 2\n            END,\n            timestamp DESC\n        LIMIT 50;\n        "
         }
       ],
       "fieldConfig": {
