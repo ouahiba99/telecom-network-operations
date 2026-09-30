@@ -1,0 +1,56 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: telecom-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: telecom
+      POSTGRES_PASSWORD: telecom
+      POSTGRES_DB: telecom_network
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telecom -d telecom_network"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+
+  kafka:
+    image: apache/kafka:4.3.1
+    container_name: telecom-kafka
+    restart: unless-stopped
+
+    ports:
+      - "9092:9092"
+
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: telecom-grafana
+    restart: unless-stopped
+
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  grafana_data:

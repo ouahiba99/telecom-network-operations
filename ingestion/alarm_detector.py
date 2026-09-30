@@ -1,14 +1,34 @@
 import json
+import os
 from datetime import datetime, timezone
 
+from dotenv import load_dotenv
 from kafka import KafkaConsumer, KafkaProducer
 
 
-KAFKA_BOOTSTRAP_SERVERS = "127.0.0.1:9092"
-KPI_TOPIC = "network.kpis"
-ALARM_TOPIC = "network.alarms"
+load_dotenv()
 
+
+KAFKA_BOOTSTRAP_SERVERS = os.getenv(
+    "KAFKA_BOOTSTRAP_SERVERS",
+    "127.0.0.1:9092",
+)
+
+KPI_TOPIC = os.getenv(
+    "KAFKA_TOPIC",
+    "network.kpis",
+)
+
+ALARM_TOPIC = os.getenv(
+    "KAFKA_ALARM_TOPIC",
+    "network.alarms",
+)
+
+
+# =========================================================
 # Operational thresholds
+# =========================================================
+
 THRESHOLDS = {
     "availability": 98.0,
     "latency_ms": 150.0,
@@ -20,6 +40,10 @@ THRESHOLDS = {
 }
 
 
+# =========================================================
+# Kafka
+# =========================================================
+
 def create_consumer():
     return KafkaConsumer(
         KPI_TOPIC,
@@ -27,7 +51,9 @@ def create_consumer():
         group_id="telecom-alarm-detector",
         auto_offset_reset="latest",
         enable_auto_commit=True,
-        value_deserializer=lambda value: json.loads(value.decode("utf-8")),
+        value_deserializer=lambda value: json.loads(
+            value.decode("utf-8")
+        ),
     )
 
 
@@ -35,9 +61,15 @@ def create_producer():
     return KafkaProducer(
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
         key_serializer=lambda key: str(key).encode("utf-8"),
-        value_serializer=lambda value: json.dumps(value).encode("utf-8"),
+        value_serializer=lambda value: json.dumps(
+            value
+        ).encode("utf-8"),
     )
 
+
+# =========================================================
+# Alarm construction
+# =========================================================
 
 def build_alarm(
     kpi,
@@ -69,6 +101,10 @@ def build_alarm(
     }
 
 
+# =========================================================
+# Alarm detection
+# =========================================================
+
 def detect_alarms(kpi):
     alarms = []
 
@@ -80,7 +116,10 @@ def detect_alarms(kpi):
     handover = kpi["handover_success_rate"]
     call_drop = kpi["call_drop_rate"]
 
+    # -----------------------------------------------------
     # Availability
+    # -----------------------------------------------------
+
     if availability < 90:
         alarms.append(
             build_alarm(
@@ -90,11 +129,17 @@ def detect_alarms(kpi):
                 "availability",
                 availability,
                 90.0,
-                f"Cell availability critically low: {availability:.2f}%",
+                f"Cell availability critically low: "
+                f"{availability:.2f}%",
             )
         )
+
     elif availability < THRESHOLDS["availability"]:
-        severity = "MAJOR" if availability >= 95 else "CRITICAL"
+        severity = (
+            "MAJOR"
+            if availability >= 95
+            else "CRITICAL"
+        )
 
         alarms.append(
             build_alarm(
@@ -104,13 +149,21 @@ def detect_alarms(kpi):
                 "availability",
                 availability,
                 THRESHOLDS["availability"],
-                f"Low cell availability: {availability:.2f}%",
+                f"Low cell availability: "
+                f"{availability:.2f}%",
             )
         )
 
+    # -----------------------------------------------------
     # Latency
+    # -----------------------------------------------------
+
     if latency > THRESHOLDS["latency_ms"]:
-        severity = "MAJOR" if latency <= 300 else "CRITICAL"
+        severity = (
+            "MAJOR"
+            if latency <= 300
+            else "CRITICAL"
+        )
 
         alarms.append(
             build_alarm(
@@ -120,11 +173,15 @@ def detect_alarms(kpi):
                 "latency_ms",
                 latency,
                 THRESHOLDS["latency_ms"],
-                f"High network latency: {latency:.2f} ms",
+                f"High network latency: "
+                f"{latency:.2f} ms",
             )
         )
 
+    # -----------------------------------------------------
     # Packet loss
+    # -----------------------------------------------------
+
     if packet_loss > 10:
         alarms.append(
             build_alarm(
@@ -134,9 +191,11 @@ def detect_alarms(kpi):
                 "packet_loss_pct",
                 packet_loss,
                 10.0,
-                f"Critical packet loss detected: {packet_loss:.2f}%",
+                f"Critical packet loss detected: "
+                f"{packet_loss:.2f}%",
             )
         )
+
     elif packet_loss > THRESHOLDS["packet_loss_pct"]:
         alarms.append(
             build_alarm(
@@ -146,13 +205,21 @@ def detect_alarms(kpi):
                 "packet_loss_pct",
                 packet_loss,
                 THRESHOLDS["packet_loss_pct"],
-                f"High packet loss: {packet_loss:.2f}%",
+                f"High packet loss: "
+                f"{packet_loss:.2f}%",
             )
         )
 
+    # -----------------------------------------------------
     # PRB utilization
+    # -----------------------------------------------------
+
     if prb > THRESHOLDS["prb_utilization_pct"]:
-        severity = "MAJOR" if prb <= 97 else "CRITICAL"
+        severity = (
+            "MAJOR"
+            if prb <= 97
+            else "CRITICAL"
+        )
 
         alarms.append(
             build_alarm(
@@ -162,13 +229,21 @@ def detect_alarms(kpi):
                 "prb_utilization_pct",
                 prb,
                 THRESHOLDS["prb_utilization_pct"],
-                f"High PRB utilization: {prb:.2f}%",
+                f"High PRB utilization: "
+                f"{prb:.2f}%",
             )
         )
 
-    # RRC success
+    # -----------------------------------------------------
+    # RRC success rate
+    # -----------------------------------------------------
+
     if rrc < THRESHOLDS["rrc_success_rate"]:
-        severity = "MAJOR" if rrc >= 85 else "CRITICAL"
+        severity = (
+            "MAJOR"
+            if rrc >= 85
+            else "CRITICAL"
+        )
 
         alarms.append(
             build_alarm(
@@ -178,13 +253,21 @@ def detect_alarms(kpi):
                 "rrc_success_rate",
                 rrc,
                 THRESHOLDS["rrc_success_rate"],
-                f"Low RRC success rate: {rrc:.2f}%",
+                f"Low RRC success rate: "
+                f"{rrc:.2f}%",
             )
         )
 
-    # Handover success
+    # -----------------------------------------------------
+    # Handover success rate
+    # -----------------------------------------------------
+
     if handover < THRESHOLDS["handover_success_rate"]:
-        severity = "MAJOR" if handover >= 80 else "CRITICAL"
+        severity = (
+            "MAJOR"
+            if handover >= 80
+            else "CRITICAL"
+        )
 
         alarms.append(
             build_alarm(
@@ -194,11 +277,15 @@ def detect_alarms(kpi):
                 "handover_success_rate",
                 handover,
                 THRESHOLDS["handover_success_rate"],
-                f"Low handover success rate: {handover:.2f}%",
+                f"Low handover success rate: "
+                f"{handover:.2f}%",
             )
         )
 
-    # Call drop
+    # -----------------------------------------------------
+    # Call drop rate
+    # -----------------------------------------------------
+
     if call_drop > 10:
         alarms.append(
             build_alarm(
@@ -208,9 +295,11 @@ def detect_alarms(kpi):
                 "call_drop_rate",
                 call_drop,
                 10.0,
-                f"Critical call drop rate: {call_drop:.2f}%",
+                f"Critical call drop rate: "
+                f"{call_drop:.2f}%",
             )
         )
+
     elif call_drop > THRESHOLDS["call_drop_rate"]:
         alarms.append(
             build_alarm(
@@ -220,24 +309,31 @@ def detect_alarms(kpi):
                 "call_drop_rate",
                 call_drop,
                 THRESHOLDS["call_drop_rate"],
-                f"High call drop rate: {call_drop:.2f}%",
+                f"High call drop rate: "
+                f"{call_drop:.2f}%",
             )
         )
 
     return alarms
 
 
+# =========================================================
+# Main
+# =========================================================
+
 def main():
     consumer = create_consumer()
     producer = create_producer()
 
     print("Alarm detector started.")
+    print(f"Kafka broker: {KAFKA_BOOTSTRAP_SERVERS}")
     print(f"Listening to Kafka topic: {KPI_TOPIC}")
     print(f"Publishing alarms to: {ALARM_TOPIC}")
 
     try:
         for message in consumer:
             kpi = message.value
+
             alarms = detect_alarms(kpi)
 
             for alarm in alarms:

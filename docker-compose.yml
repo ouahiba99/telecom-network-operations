@@ -18,7 +18,11 @@ services:
       - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U telecom -d telecom_network"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U telecom -d telecom_network"
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -31,6 +35,203 @@ services:
 
     ports:
       - "9092:9092"
+
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"
+        ]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 15s
+
+
+  init-cells:
+    build:
+      context: .
+    container_name: telecom-init-cells
+
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: telecom_network
+      POSTGRES_USER: telecom
+      POSTGRES_PASSWORD: telecom
+
+    command:
+      [
+        "python",
+        "database/import_cells.py"
+      ]
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+
+  api:
+    build:
+      context: .
+    container_name: telecom-api
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: telecom_network
+      POSTGRES_USER: telecom
+      POSTGRES_PASSWORD: telecom
+
+    ports:
+      - "8000:8000"
+
+    command:
+      [
+        "uvicorn",
+        "api.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ]
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+
+  producer:
+    build:
+      context: .
+    container_name: telecom-kpi-producer
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: telecom_network
+      POSTGRES_USER: telecom
+      POSTGRES_PASSWORD: telecom
+
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: network.kpis
+
+    command:
+      [
+        "python",
+        "-m",
+        "ingestion.producer"
+      ]
+
+    depends_on:
+      init-cells:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+
+
+  consumer:
+    build:
+      context: .
+    container_name: telecom-kpi-consumer
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: telecom_network
+      POSTGRES_USER: telecom
+      POSTGRES_PASSWORD: telecom
+
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: network.kpis
+      KAFKA_GROUP_ID: telecom-kpi-consumer
+
+    command:
+      [
+        "python",
+        "-m",
+        "ingestion.consumer"
+      ]
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+
+  alarm-detector:
+    build:
+      context: .
+    container_name: telecom-alarm-detector
+    restart: unless-stopped
+
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: network.kpis
+      KAFKA_ALARM_TOPIC: network.alarms
+
+    command:
+      [
+        "python",
+        "-m",
+        "ingestion.alarm_detector"
+      ]
+
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+
+  alarm-consumer:
+    build:
+      context: .
+    container_name: telecom-alarm-consumer
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: telecom_network
+      POSTGRES_USER: telecom
+      POSTGRES_PASSWORD: telecom
+
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_ALARM_TOPIC: network.alarms
+      KAFKA_ALARM_GROUP_ID: telecom-alarm-consumer
+
+    command:
+      [
+        "python",
+        "-m",
+        "ingestion.alarm_consumer"
+      ]
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
 
 
   grafana:
@@ -50,6 +251,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
 
 volumes:
   postgres_data:

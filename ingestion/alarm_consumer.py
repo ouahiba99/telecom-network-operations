@@ -1,19 +1,51 @@
 import json
+import os
 
 import psycopg2
+from dotenv import load_dotenv
 from kafka import KafkaConsumer
 
 
-KAFKA_BOOTSTRAP_SERVERS = "127.0.0.1:9092"
-KAFKA_TOPIC = "network.alarms"
-KAFKA_GROUP_ID = "telecom-alarm-consumer"
+load_dotenv()
+
+
+KAFKA_BOOTSTRAP_SERVERS = os.getenv(
+    "KAFKA_BOOTSTRAP_SERVERS",
+    "127.0.0.1:9092",
+)
+
+KAFKA_TOPIC = os.getenv(
+    "KAFKA_ALARM_TOPIC",
+    "network.alarms",
+)
+
+KAFKA_GROUP_ID = os.getenv(
+    "KAFKA_ALARM_GROUP_ID",
+    "telecom-alarm-consumer",
+)
+
 
 DB_CONFIG = {
-    "host": "127.0.0.1",
-    "port": 5433,
-    "dbname": "telecom_network",
-    "user": "telecom",
-    "password": "telecom",
+    "host": os.getenv(
+        "POSTGRES_HOST",
+        "127.0.0.1",
+    ),
+    "port": os.getenv(
+        "POSTGRES_PORT",
+        "5433",
+    ),
+    "dbname": os.getenv(
+        "POSTGRES_DB",
+        "telecom_network",
+    ),
+    "user": os.getenv(
+        "POSTGRES_USER",
+        "telecom",
+    ),
+    "password": os.getenv(
+        "POSTGRES_PASSWORD",
+        "telecom",
+    ),
 }
 
 
@@ -24,7 +56,9 @@ def create_consumer():
         group_id=KAFKA_GROUP_ID,
         auto_offset_reset="latest",
         enable_auto_commit=False,
-        value_deserializer=lambda value: json.loads(value.decode("utf-8")),
+        value_deserializer=lambda value: json.loads(
+            value.decode("utf-8")
+        ),
     )
 
 
@@ -72,45 +106,22 @@ def insert_alarm(cursor, alarm):
 
 
 def main():
+    print(f"Kafka broker: {KAFKA_BOOTSTRAP_SERVERS}")
+    print(f"Kafka topic: {KAFKA_TOPIC}")
+    print(f"Kafka group: {KAFKA_GROUP_ID}")
+    print(
+        f"PostgreSQL: "
+        f"{DB_CONFIG['host']}:{DB_CONFIG['port']}"
+    )
+
     consumer = create_consumer()
     connection = get_connection()
-    cursor = connection.cursor()
-
-    print("Alarm consumer started.")
-    print(f"Listening to Kafka topic: {KAFKA_TOPIC}")
-    print("Writing alarms to PostgreSQL: network_alarms")
 
     try:
+        cursor = connection.cursor()
+
         for message in consumer:
             alarm = message.value
-
-            required_fields = [
-                "timestamp",
-                "cell_db_id",
-                "radio",
-                "mcc",
-                "cell_id",
-                "alarm_type",
-                "severity",
-                "metric",
-                "metric_value",
-                "threshold_value",
-                "message",
-                "status",
-            ]
-
-            missing = [
-                field
-                for field in required_fields
-                if field not in alarm
-            ]
-
-            if missing:
-                print(
-                    f"Skipping invalid alarm | "
-                    f"missing fields: {missing}"
-                )
-                continue
 
             try:
                 insert_alarm(cursor, alarm)
@@ -119,30 +130,33 @@ def main():
                 consumer.commit()
 
                 print(
-                    f"Stored alarm | "
-                    f"cell={alarm['cell_id']} | "
-                    f"type={alarm['alarm_type']} | "
-                    f"severity={alarm['severity']} | "
-                    f"metric={alarm['metric']} | "
-                    f"value={alarm['metric_value']:.2f}"
+                    f"[{alarm.get('severity', 'UNKNOWN'):8}] "
+                    f"cell={alarm.get('cell_id')} | "
+                    f"type={alarm.get('alarm_type')} | "
+                    f"metric={alarm.get('metric')} | "
+                    f"value={alarm.get('metric_value')}"
                 )
 
             except Exception as exc:
                 connection.rollback()
-
                 print(
-                    f"Database error | "
-                    f"cell={alarm.get('cell_id')} | "
-                    f"type={alarm.get('alarm_type')} | "
-                    f"error={exc}"
+                    f"Failed to insert alarm: {exc}"
                 )
 
     except KeyboardInterrupt:
         print("\nStopping alarm consumer...")
 
     finally:
-        cursor.close()
-        connection.close()
+        try:
+            cursor.close()
+        except Exception:
+            pass
+
+        try:
+            connection.close()
+        except Exception:
+            pass
+
         consumer.close()
 
 

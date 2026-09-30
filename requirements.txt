@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+kafka-python
+psycopg2-binary
+python-dotenv
+pandas
