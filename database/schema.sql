@@ -20,8 +20,16 @@ CREATE TABLE IF NOT EXISTS cells (
 
     average_signal INTEGER,
 
+    -- Geographic enrichment
+    wilaya_code INTEGER,
+    wilaya_name VARCHAR(100),
+    wilaya_name_fr VARCHAR(100),
+    geo_match_status VARCHAR(30),
+    geo_source VARCHAR(100),
+
     UNIQUE (radio, mcc, mnc, area, cell_id)
 );
+
 
 CREATE INDEX IF NOT EXISTS idx_cells_coordinates
     ON cells (latitude, longitude);
@@ -31,6 +39,16 @@ CREATE INDEX IF NOT EXISTS idx_cells_radio
 
 CREATE INDEX IF NOT EXISTS idx_cells_mcc_mnc
     ON cells (mcc, mnc);
+
+CREATE INDEX IF NOT EXISTS idx_cells_wilaya
+    ON cells (wilaya_code);
+
+CREATE INDEX IF NOT EXISTS idx_cells_wilaya_name
+    ON cells (wilaya_name);
+
+CREATE INDEX IF NOT EXISTS idx_cells_geo_status
+    ON cells (geo_match_status);
+
 
 CREATE TABLE IF NOT EXISTS network_kpis (
     id BIGSERIAL PRIMARY KEY,
@@ -60,6 +78,7 @@ CREATE TABLE IF NOT EXISTS network_kpis (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_network_kpis_timestamp
     ON network_kpis (timestamp DESC);
 
@@ -68,6 +87,7 @@ CREATE INDEX IF NOT EXISTS idx_network_kpis_cell
 
 CREATE INDEX IF NOT EXISTS idx_network_kpis_cell_timestamp
     ON network_kpis (cell_db_id, timestamp DESC);
+
 
 CREATE TABLE IF NOT EXISTS network_alarms (
     id BIGSERIAL PRIMARY KEY,
@@ -95,6 +115,7 @@ CREATE TABLE IF NOT EXISTS network_alarms (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_network_alarms_timestamp
     ON network_alarms (timestamp DESC);
 
@@ -109,3 +130,4 @@ CREATE INDEX IF NOT EXISTS idx_network_alarms_status
 
 CREATE INDEX IF NOT EXISTS idx_network_alarms_type
     ON network_alarms (alarm_type);
+    

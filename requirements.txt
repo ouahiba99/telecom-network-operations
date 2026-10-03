@@ -4,3 +4,5 @@ kafka-python
 psycopg2-binary
 python-dotenv
 pandas
+shapely>=2.0,<3
+shapely

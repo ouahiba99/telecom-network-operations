@@ -24,7 +24,7 @@ def get_connection():
     )
 
 
-def load_cells(limit=20):
+def load_cells(limit=500):
     conn = get_connection()
 
     try:
@@ -358,7 +358,7 @@ def generate_kpi(cell):
 # =========================================================
 
 if __name__ == "__main__":
-    cells = load_cells(limit=20)
+    cells = load_cells(limit=500)
 
     if not cells:
         raise RuntimeError("No cells found in PostgreSQL.")

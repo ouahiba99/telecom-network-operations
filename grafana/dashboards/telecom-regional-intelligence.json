@@ -1,0 +1,830 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(255, 96, 96, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Cells in Scope",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT COUNT(*) AS value\n        FROM cells\n        WHERE '${wilaya}' = 'All'\n           OR wilaya_name_fr = '${wilaya}';\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Wilayas with Cells",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT COUNT(DISTINCT wilaya_name_fr) AS value\n        FROM cells\n        WHERE geo_match_status = 'MATCHED'\n          AND wilaya_name_fr IS NOT NULL\n          AND (\n              '${wilaya}' = 'All'\n              OR wilaya_name_fr = '${wilaya}'\n          );\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Boundary Review",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT COUNT(*) AS value\n        FROM cells\n        WHERE geo_match_status = 'BOUNDARY_REVIEW'\n          AND (\n              '${wilaya}' = 'All'\n              OR wilaya_name_fr = '${wilaya}'\n          );\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Regional Availability",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        WITH latest AS (\n            SELECT DISTINCT ON (k.cell_db_id)\n                k.cell_db_id,\n                k.availability\n            FROM network_kpis k\n            JOIN cells c\n              ON c.id = k.cell_db_id\n            WHERE '${wilaya}' = 'All'\n               OR c.wilaya_name_fr = '${wilaya}'\n            ORDER BY k.cell_db_id, k.timestamp DESC\n        )\n        SELECT COALESCE(AVG(availability), 0) AS value\n        FROM latest;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Cells by Wilaya",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT\n            COALESCE(wilaya_name_fr, 'Boundary Review') AS \"Wilaya\",\n            COUNT(*) AS \"Cells\",\n            COUNT(*) FILTER (\n                WHERE geo_match_status = 'MATCHED'\n            ) AS \"Matched\",\n            COUNT(*) FILTER (\n                WHERE geo_match_status = 'BOUNDARY_REVIEW'\n            ) AS \"Boundary Review\"\n        FROM cells\n        WHERE '${wilaya}' = 'All'\n           OR wilaya_name_fr = '${wilaya}'\n        GROUP BY wilaya_name_fr\n        ORDER BY COUNT(*) DESC;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Regional Network Health",
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        WITH latest AS (\n            SELECT DISTINCT ON (k.cell_db_id)\n                k.cell_db_id,\n                k.availability,\n                k.latency_ms,\n                k.packet_loss_pct,\n                k.throughput_mbps,\n                k.prb_utilization_pct,\n                k.rrc_success_rate,\n                k.handover_success_rate,\n                k.call_drop_rate\n            FROM network_kpis k\n            JOIN cells c\n              ON c.id = k.cell_db_id\n            WHERE '${wilaya}' = 'All'\n               OR c.wilaya_name_fr = '${wilaya}'\n            ORDER BY k.cell_db_id, k.timestamp DESC\n        )\n        SELECT\n            COUNT(*) AS \"Cells\",\n            ROUND(AVG(availability)::numeric, 2) AS \"Availability %\",\n            ROUND(AVG(latency_ms)::numeric, 2) AS \"Latency ms\",\n            ROUND(AVG(packet_loss_pct)::numeric, 2) AS \"Packet Loss %\",\n            ROUND(AVG(throughput_mbps)::numeric, 2) AS \"Throughput Mbps\",\n            ROUND(AVG(prb_utilization_pct)::numeric, 2) AS \"PRB %\",\n            ROUND(AVG(rrc_success_rate)::numeric, 2) AS \"RRC %\",\n            ROUND(AVG(handover_success_rate)::numeric, 2) AS \"HO %\",\n            ROUND(AVG(call_drop_rate)::numeric, 2) AS \"Drop %\"\n        FROM latest;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Latency by Wilaya",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT\n            date_trunc('minute', k.timestamp) AS time,\n            c.wilaya_name_fr AS \"Wilaya\",\n            AVG(k.latency_ms) AS \"Latency\"\n        FROM network_kpis k\n        JOIN cells c\n          ON c.id = k.cell_db_id\n        WHERE $__timeFilter(k.timestamp)\n          AND c.geo_match_status = 'MATCHED'\n          AND (\n              '${wilaya}' = 'All'\n              OR c.wilaya_name_fr = '${wilaya}'\n          )\n        GROUP BY 1, 2\n        ORDER BY 1;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Packet Loss by Wilaya",
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT\n            date_trunc('minute', k.timestamp) AS time,\n            c.wilaya_name_fr AS \"Wilaya\",\n            AVG(k.packet_loss_pct) AS \"Packet Loss\"\n        FROM network_kpis k\n        JOIN cells c\n          ON c.id = k.cell_db_id\n        WHERE $__timeFilter(k.timestamp)\n          AND c.geo_match_status = 'MATCHED'\n          AND (\n              '${wilaya}' = 'All'\n              OR c.wilaya_name_fr = '${wilaya}'\n          )\n        GROUP BY 1, 2\n        ORDER BY 1;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Traffic & Capacity by Wilaya",
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        WITH latest AS (\n            SELECT DISTINCT ON (k.cell_db_id)\n                k.cell_db_id,\n                k.active_users,\n                k.throughput_mbps,\n                k.prb_utilization_pct,\n                k.latency_ms\n            FROM network_kpis k\n            JOIN cells c\n              ON c.id = k.cell_db_id\n            WHERE '${wilaya}' = 'All'\n               OR c.wilaya_name_fr = '${wilaya}'\n            ORDER BY k.cell_db_id, k.timestamp DESC\n        )\n        SELECT\n            c.wilaya_name_fr AS \"Wilaya\",\n            COUNT(*) AS \"Cells\",\n            ROUND(AVG(latest.active_users)::numeric, 0) AS \"Active Users\",\n            ROUND(AVG(latest.throughput_mbps)::numeric, 2) AS \"Throughput Mbps\",\n            ROUND(AVG(latest.prb_utilization_pct)::numeric, 2) AS \"PRB %\",\n            ROUND(AVG(latest.latency_ms)::numeric, 2) AS \"Latency ms\"\n        FROM latest\n        JOIN cells c\n          ON c.id = latest.cell_db_id\n        GROUP BY c.wilaya_name_fr\n        ORDER BY AVG(latest.prb_utilization_pct) DESC;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      }
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Critical & Major Alarms by Wilaya",
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT\n            COALESCE(c.wilaya_name_fr, 'Boundary Review') AS \"Wilaya\",\n            COUNT(*) FILTER (\n                WHERE a.severity = 'CRITICAL'\n            ) AS \"Critical\",\n            COUNT(*) FILTER (\n                WHERE a.severity IN ('MAJOR', 'WARNING')\n            ) AS \"Major / Warning\",\n            COUNT(*) AS \"Total\"\n        FROM network_alarms a\n        LEFT JOIN cells c\n          ON c.id = a.cell_db_id\n        WHERE a.timestamp >= NOW() - INTERVAL '24 hours'\n          AND (\n              '${wilaya}' = 'All'\n              OR c.wilaya_name_fr = '${wilaya}'\n          )\n        GROUP BY c.wilaya_name_fr\n        ORDER BY COUNT(*) DESC;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      }
+    },
+    {
+      "id": 11,
+      "type": "table",
+      "title": "Regional Alarm Breakdown",
+      "gridPos": {
+        "x": 12,
+        "y": 31,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT\n            COALESCE(c.wilaya_name_fr, 'Boundary Review') AS \"Wilaya\",\n            a.alarm_type AS \"Alarm Type\",\n            a.severity AS \"Severity\",\n            COUNT(*) AS \"Count\"\n        FROM network_alarms a\n        LEFT JOIN cells c\n          ON c.id = a.cell_db_id\n        WHERE a.timestamp >= NOW() - INTERVAL '24 hours'\n          AND (\n              '${wilaya}' = 'All'\n              OR c.wilaya_name_fr = '${wilaya}'\n          )\n        GROUP BY\n            c.wilaya_name_fr,\n            a.alarm_type,\n            a.severity\n        ORDER BY COUNT(*) DESC\n        LIMIT 30;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      }
+    },
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Geographic Data Quality",
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT\n            geo_match_status AS \"Status\",\n            COUNT(*) AS \"Cells\",\n            ROUND(\n                COUNT(*) * 100.0 /\n                NULLIF((SELECT COUNT(*) FROM cells), 0),\n                2\n            ) AS \"Coverage %\"\n        FROM cells\n        GROUP BY geo_match_status\n        ORDER BY COUNT(*) DESC;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      }
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Regional Cell Health Detail",
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        WITH latest AS (\n            SELECT DISTINCT ON (k.cell_db_id)\n                k.*\n            FROM network_kpis k\n            JOIN cells c\n              ON c.id = k.cell_db_id\n            WHERE '${wilaya}' = 'All'\n               OR c.wilaya_name_fr = '${wilaya}'\n            ORDER BY k.cell_db_id, k.timestamp DESC\n        )\n        SELECT\n            latest.cell_id AS \"Cell\",\n            c.wilaya_name_fr AS \"Wilaya\",\n            latest.radio AS \"Radio\",\n            ROUND(latest.availability::numeric, 2) AS \"Availability %\",\n            ROUND(latest.latency_ms::numeric, 2) AS \"Latency ms\",\n            ROUND(latest.packet_loss_pct::numeric, 2) AS \"Loss %\",\n            ROUND(latest.prb_utilization_pct::numeric, 2) AS \"PRB %\",\n            ROUND(latest.rrc_success_rate::numeric, 2) AS \"RRC %\",\n            ROUND(latest.handover_success_rate::numeric, 2) AS \"HO %\",\n            ROUND(latest.call_drop_rate::numeric, 2) AS \"Drop %\",\n            CASE\n                WHEN latest.availability < 95\n                  OR latest.latency_ms > 120\n                  OR latest.packet_loss_pct > 5\n                  OR latest.prb_utilization_pct > 95\n                  OR latest.call_drop_rate > 5\n                  OR latest.rrc_success_rate < 90\n                  OR latest.handover_success_rate < 90\n                THEN 'CRITICAL'\n                WHEN latest.availability < 98\n                  OR latest.latency_ms > 80\n                  OR latest.packet_loss_pct > 2\n                  OR latest.prb_utilization_pct > 90\n                  OR latest.call_drop_rate > 2\n                  OR latest.rrc_success_rate < 95\n                  OR latest.handover_success_rate < 94\n                THEN 'WARNING'\n                ELSE 'HEALTHY'\n            END AS \"Status\"\n        FROM latest\n        JOIN cells c\n          ON c.id = latest.cell_db_id\n        ORDER BY\n            CASE\n                WHEN latest.availability < 95\n                  OR latest.latency_ms > 120\n                  OR latest.packet_loss_pct > 5\n                  OR latest.prb_utilization_pct > 95\n                  OR latest.call_drop_rate > 5\n                  OR latest.rrc_success_rate < 90\n                  OR latest.handover_success_rate < 90\n                THEN 1\n                WHEN latest.availability < 98\n                  OR latest.latency_ms > 80\n                  OR latest.packet_loss_pct > 2\n                  OR latest.prb_utilization_pct > 90\n                  OR latest.call_drop_rate > 2\n                  OR latest.rrc_success_rate < 95\n                  OR latest.handover_success_rate < 94\n                THEN 2\n                ELSE 3\n            END,\n            latest.latency_ms DESC\n        LIMIT 50;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      }
+    },
+    {
+      "id": 14,
+      "type": "geomap",
+      "title": "Algeria Network Cell Map",
+      "description": "Geographic view of network cells with latest KPI health state.",
+      "gridPos": {
+        "x": 0,
+        "y": 54,
+        "w": 24,
+        "h": 16
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n                    WITH latest AS (\n                        SELECT DISTINCT ON (k.cell_db_id)\n                            k.cell_db_id,\n                            k.timestamp,\n                            k.cell_id,\n                            k.radio,\n                            k.availability,\n                            k.latency_ms,\n                            k.packet_loss_pct,\n                            k.throughput_mbps,\n                            k.prb_utilization_pct,\n                            k.rrc_success_rate,\n                            k.handover_success_rate,\n                            k.call_drop_rate,\n                            k.active_users\n                        FROM network_kpis k\n                        ORDER BY\n                            k.cell_db_id,\n                            k.timestamp DESC\n                    ),\n\n                    network_state AS (\n                        SELECT\n                            c.id,\n                            c.latitude,\n                            c.longitude,\n                            c.cell_id,\n                            c.radio,\n                            c.wilaya_name_fr,\n\n                            latest.timestamp,\n                            latest.availability,\n                            latest.latency_ms,\n                            latest.packet_loss_pct,\n                            latest.throughput_mbps,\n                            latest.prb_utilization_pct,\n                            latest.rrc_success_rate,\n                            latest.handover_success_rate,\n                            latest.call_drop_rate,\n                            latest.active_users,\n\n                            CASE\n                                WHEN latest.cell_db_id IS NULL\n                                    THEN 'NO KPI DATA'\n\n                                WHEN latest.availability < 95\n                                  OR latest.latency_ms > 120\n                                  OR latest.packet_loss_pct > 5\n                                  OR latest.prb_utilization_pct > 95\n                                  OR latest.call_drop_rate > 5\n                                  OR latest.rrc_success_rate < 90\n                                  OR latest.handover_success_rate < 90\n                                    THEN 'CRITICAL'\n\n                                WHEN latest.availability < 98\n                                  OR latest.latency_ms > 80\n                                  OR latest.packet_loss_pct > 2\n                                  OR latest.prb_utilization_pct > 90\n                                  OR latest.call_drop_rate > 2\n                                  OR latest.rrc_success_rate < 95\n                                  OR latest.handover_success_rate < 94\n                                    THEN 'WARNING'\n\n                                ELSE 'HEALTHY'\n                            END AS status\n\n                        FROM cells c\n\n                        LEFT JOIN latest\n                            ON latest.cell_db_id = c.id\n\n                        WHERE c.latitude IS NOT NULL\n                          AND c.longitude IS NOT NULL\n                          AND (\n                              '${wilaya}' = 'All'\n                              OR c.wilaya_name_fr = '${wilaya}'\n                          )\n                    )\n\n                    SELECT\n                        latitude,\n                        longitude,\n\n                        cell_id AS \"Cell\",\n                        radio AS \"Radio\",\n                        wilaya_name_fr AS \"Wilaya\",\n\n                        ROUND(availability::numeric, 2)\n                            AS \"Availability %\",\n                        ROUND(latency_ms::numeric, 2)\n                            AS \"Latency ms\",\n                        ROUND(packet_loss_pct::numeric, 2)\n                            AS \"Packet Loss %\",\n                        ROUND(throughput_mbps::numeric, 2)\n                            AS \"Throughput Mbps\",\n                        ROUND(prb_utilization_pct::numeric, 2)\n                            AS \"PRB %\",\n                        ROUND(rrc_success_rate::numeric, 2)\n                            AS \"RRC %\",\n                        ROUND(handover_success_rate::numeric, 2)\n                            AS \"HO %\",\n                        ROUND(call_drop_rate::numeric, 2)\n                            AS \"Drop %\",\n                        active_users AS \"Active Users\",\n                        timestamp AS \"Last Seen\",\n\n                        status AS \"Status\",\n\n                        CASE status\n                            WHEN 'HEALTHY' THEN 1\n                            WHEN 'WARNING' THEN 2\n                            WHEN 'CRITICAL' THEN 3\n                            WHEN 'NO KPI DATA' THEN 0\n                            ELSE 0\n                        END AS \"Health Code\"\n\n                    FROM network_state\n\n                    ORDER BY\n                        wilaya_name_fr,\n                        cell_id;\n                "
+        }
+      ],
+      "options": {
+        "view": {
+          "id": "fit",
+          "lat": 28.0339,
+          "lon": 1.6596,
+          "zoom": 5,
+          "allLayers": true,
+          "lastOnly": false
+        },
+        "controls": {
+          "showZoom": true,
+          "mouseWheelZoom": true,
+          "showAttribution": true,
+          "showScale": true,
+          "showMeasure": false,
+          "showDebug": false
+        },
+        "tooltip": {
+          "mode": "details"
+        },
+        "basemap": {
+          "config": {},
+          "name": "Layer 0",
+          "type": "default"
+        },
+        "layers": [
+          {
+            "config": {
+              "showLegend": true,
+              "style": {
+                "color": {
+                  "field": "Health Code"
+                },
+                "opacity": 0.85,
+                "size": {
+                  "field": "PRB %",
+                  "min": 5,
+                  "max": 15
+                },
+                "symbol": {
+                  "fixed": "img/icons/marker/circle.svg",
+                  "mode": "fixed"
+                },
+                "rotation": {
+                  "fixed": 0,
+                  "min": -360,
+                  "max": 360,
+                  "mode": "mod"
+                },
+                "textConfig": {
+                  "fontSize": 11,
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "textAlign": "center",
+                  "textBaseline": "middle"
+                }
+              }
+            },
+            "filterData": {
+              "id": "byRefId",
+              "options": "A"
+            },
+            "location": {
+              "latitude": "latitude",
+              "longitude": "longitude",
+              "mode": "coords"
+            },
+            "name": "Network Cells",
+            "tooltip": true,
+            "type": "markers"
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "gray",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              },
+              {
+                "color": "yellow",
+                "value": 2
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "telecom",
+    "regional",
+    "wilaya",
+    "geography",
+    "operations"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "wilaya",
+        "label": "Wilaya",
+        "type": "query",
+        "datasource": {
+          "type": "postgres",
+          "uid": "telecom-postgres"
+        },
+        "query": "\n                SELECT 'All' AS wilaya\n                UNION ALL\n                SELECT DISTINCT wilaya_name_fr\n                FROM cells\n                WHERE geo_match_status = 'MATCHED'\n                  AND wilaya_name_fr IS NOT NULL\n                ORDER BY 1;\n            ",
+        "includeAll": false,
+        "multi": false,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "All"
+        }
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "6h",
+      "12h",
+      "24h"
+    ]
+  },
+  "timezone": "browser",
+  "title": "06 \u2014 Regional Network Intelligence",
+  "uid": "telecom-regional-intelligence",
+  "version": 1,
+  "weekStart": "",
+  "folderUid": "telecom-noc-folder"
+}
