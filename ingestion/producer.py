@@ -32,7 +32,7 @@ def create_producer():
 
 
 def main():
-    cells = load_cells(limit=20)
+    cells = load_cells(limit=500)
 
     if not cells:
         raise RuntimeError("No cells found in PostgreSQL.")
@@ -45,29 +45,30 @@ def main():
 
     try:
         while True:
-            cell = random.choice(cells)
+            random.shuffle(cells)
 
-            kpi = generate_kpi(cell)
+            for cell in cells:
+                kpi = generate_kpi(cell)
 
-            future = producer.send(
-                KAFKA_TOPIC,
-                key=kpi["cell_id"],
-                value=kpi,
-            )
+                future = producer.send(
+                    KAFKA_TOPIC,
+                    key=kpi["cell_id"],
+                    value=kpi,
+                )
 
-            metadata = future.get(timeout=10)
+                metadata = future.get(timeout=10)
 
-            print(
-                f"Sent KPI | "
-                f"cell={kpi['cell_id']} | "
-                f"radio={kpi['radio']} | "
-                f"condition={kpi.get('condition', 'UNKNOWN')} | "
-                f"latency={kpi['latency_ms']} ms | "
-                f"partition={metadata.partition} | "
-                f"offset={metadata.offset}"
-            )
+                print(
+                    f"Sent KPI | "
+                    f"cell={kpi['cell_id']} | "
+                    f"radio={kpi['radio']} | "
+                    f"condition={kpi.get('condition', 'UNKNOWN')} | "
+                    f"latency={kpi['latency_ms']} ms | "
+                    f"partition={metadata.partition} | "
+                    f"offset={metadata.offset}"
+                )
 
-            time.sleep(2)
+                time.sleep(2)
 
     except KeyboardInterrupt:
         print("\nStopping producer...")

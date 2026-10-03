@@ -1431,10 +1431,10 @@ d["templating"] = {
             "query": """
                 SELECT 'All' AS wilaya
                 UNION ALL
-                SELECT DISTINCT wilaya_name_fr
+                SELECT DISTINCT wilaya_normalized
                 FROM cells
                 WHERE geo_match_status = 'MATCHED'
-                  AND wilaya_name_fr IS NOT NULL
+                  AND wilaya_normalized IS NOT NULL
                 ORDER BY 1;
             """,
             "includeAll": False,
@@ -1464,7 +1464,7 @@ d["panels"] = [
         SELECT COUNT(*) AS value
         FROM cells
         WHERE '${wilaya}' = 'All'
-           OR wilaya_name_fr = '${wilaya}';
+           OR wilaya_normalized = '${wilaya}';
         """,
         "short",
         0,
@@ -1481,13 +1481,13 @@ d["panels"] = [
         0,
         6,
         """
-        SELECT COUNT(DISTINCT wilaya_name_fr) AS value
+        SELECT COUNT(DISTINCT wilaya_normalized) AS value
         FROM cells
         WHERE geo_match_status = 'MATCHED'
-          AND wilaya_name_fr IS NOT NULL
+          AND wilaya_normalized IS NOT NULL
           AND (
               '${wilaya}' = 'All'
-              OR wilaya_name_fr = '${wilaya}'
+              OR wilaya_normalized = '${wilaya}'
           );
         """,
         "short",
@@ -1536,7 +1536,7 @@ d["panels"] = [
             JOIN cells c
               ON c.id = k.cell_db_id
             WHERE '${wilaya}' = 'All'
-               OR c.wilaya_name_fr = '${wilaya}'
+               OR c.wilaya_normalized = '${wilaya}'
             ORDER BY k.cell_db_id, k.timestamp DESC
         )
         SELECT COALESCE(AVG(availability), 0) AS value
@@ -1558,7 +1558,7 @@ d["panels"] = [
         12,
         """
         SELECT
-            COALESCE(wilaya_name_fr, 'Boundary Review') AS "Wilaya",
+            COALESCE(wilaya_normalized, 'Boundary Review') AS "Wilaya",
             COUNT(*) AS "Cells",
             COUNT(*) FILTER (
                 WHERE geo_match_status = 'MATCHED'
@@ -1568,8 +1568,8 @@ d["panels"] = [
             ) AS "Boundary Review"
         FROM cells
         WHERE '${wilaya}' = 'All'
-           OR wilaya_name_fr = '${wilaya}'
-        GROUP BY wilaya_name_fr
+           OR wilaya_normalized = '${wilaya}'
+        GROUP BY wilaya_normalized
         ORDER BY COUNT(*) DESC;
         """,
     ),
@@ -1600,7 +1600,7 @@ d["panels"] = [
             JOIN cells c
               ON c.id = k.cell_db_id
             WHERE '${wilaya}' = 'All'
-               OR c.wilaya_name_fr = '${wilaya}'
+               OR c.wilaya_normalized = '${wilaya}'
             ORDER BY k.cell_db_id, k.timestamp DESC
         )
         SELECT
@@ -1630,7 +1630,7 @@ d["panels"] = [
         """
         SELECT
             date_trunc('minute', k.timestamp) AS time,
-            c.wilaya_name_fr AS "Wilaya",
+            c.wilaya_normalized AS "Wilaya",
             AVG(k.latency_ms) AS "Latency"
         FROM network_kpis k
         JOIN cells c
@@ -1639,7 +1639,7 @@ d["panels"] = [
           AND c.geo_match_status = 'MATCHED'
           AND (
               '${wilaya}' = 'All'
-              OR c.wilaya_name_fr = '${wilaya}'
+              OR c.wilaya_normalized = '${wilaya}'
           )
         GROUP BY 1, 2
         ORDER BY 1;
@@ -1661,7 +1661,7 @@ d["panels"] = [
         """
         SELECT
             date_trunc('minute', k.timestamp) AS time,
-            c.wilaya_name_fr AS "Wilaya",
+            c.wilaya_normalized AS "Wilaya",
             AVG(k.packet_loss_pct) AS "Packet Loss"
         FROM network_kpis k
         JOIN cells c
@@ -1670,7 +1670,7 @@ d["panels"] = [
           AND c.geo_match_status = 'MATCHED'
           AND (
               '${wilaya}' = 'All'
-              OR c.wilaya_name_fr = '${wilaya}'
+              OR c.wilaya_normalized = '${wilaya}'
           )
         GROUP BY 1, 2
         ORDER BY 1;
@@ -1701,11 +1701,11 @@ d["panels"] = [
             JOIN cells c
               ON c.id = k.cell_db_id
             WHERE '${wilaya}' = 'All'
-               OR c.wilaya_name_fr = '${wilaya}'
+               OR c.wilaya_normalized = '${wilaya}'
             ORDER BY k.cell_db_id, k.timestamp DESC
         )
         SELECT
-            c.wilaya_name_fr AS "Wilaya",
+            c.wilaya_normalized AS "Wilaya",
             COUNT(*) AS "Cells",
             ROUND(AVG(latest.active_users)::numeric, 0) AS "Active Users",
             ROUND(AVG(latest.throughput_mbps)::numeric, 2) AS "Throughput Mbps",
@@ -1714,7 +1714,7 @@ d["panels"] = [
         FROM latest
         JOIN cells c
           ON c.id = latest.cell_db_id
-        GROUP BY c.wilaya_name_fr
+        GROUP BY c.wilaya_normalized
         ORDER BY AVG(latest.prb_utilization_pct) DESC;
         """,
     ),
@@ -1731,7 +1731,7 @@ d["panels"] = [
         12,
         """
         SELECT
-            COALESCE(c.wilaya_name_fr, 'Boundary Review') AS "Wilaya",
+            COALESCE(c.wilaya_normalized, 'Boundary Review') AS "Wilaya",
             COUNT(*) FILTER (
                 WHERE a.severity = 'CRITICAL'
             ) AS "Critical",
@@ -1745,9 +1745,9 @@ d["panels"] = [
         WHERE a.timestamp >= NOW() - INTERVAL '24 hours'
           AND (
               '${wilaya}' = 'All'
-              OR c.wilaya_name_fr = '${wilaya}'
+              OR c.wilaya_normalized = '${wilaya}'
           )
-        GROUP BY c.wilaya_name_fr
+        GROUP BY c.wilaya_normalized
         ORDER BY COUNT(*) DESC;
         """,
     ),
@@ -1764,7 +1764,7 @@ d["panels"] = [
         12,
         """
         SELECT
-            COALESCE(c.wilaya_name_fr, 'Boundary Review') AS "Wilaya",
+            COALESCE(c.wilaya_normalized, 'Boundary Review') AS "Wilaya",
             a.alarm_type AS "Alarm Type",
             a.severity AS "Severity",
             COUNT(*) AS "Count"
@@ -1774,10 +1774,10 @@ d["panels"] = [
         WHERE a.timestamp >= NOW() - INTERVAL '24 hours'
           AND (
               '${wilaya}' = 'All'
-              OR c.wilaya_name_fr = '${wilaya}'
+              OR c.wilaya_normalized = '${wilaya}'
           )
         GROUP BY
-            c.wilaya_name_fr,
+            c.wilaya_normalized,
             a.alarm_type,
             a.severity
         ORDER BY COUNT(*) DESC
@@ -1828,12 +1828,12 @@ d["panels"] = [
             JOIN cells c
               ON c.id = k.cell_db_id
             WHERE '${wilaya}' = 'All'
-               OR c.wilaya_name_fr = '${wilaya}'
+               OR c.wilaya_normalized = '${wilaya}'
             ORDER BY k.cell_db_id, k.timestamp DESC
         )
         SELECT
             latest.cell_id AS "Cell",
-            c.wilaya_name_fr AS "Wilaya",
+            c.wilaya_normalized AS "Wilaya",
             latest.radio AS "Radio",
             ROUND(latest.availability::numeric, 2) AS "Availability %",
             ROUND(latest.latency_ms::numeric, 2) AS "Latency ms",
@@ -1942,7 +1942,7 @@ d["panels"] = [
                             c.longitude,
                             c.cell_id,
                             c.radio,
-                            c.wilaya_name_fr,
+                            c.wilaya_normalized,
 
                             latest.timestamp,
                             latest.availability,
@@ -1989,7 +1989,7 @@ d["panels"] = [
                           AND c.longitude IS NOT NULL
                           AND (
                               '${wilaya}' = 'All'
-                              OR c.wilaya_name_fr = '${wilaya}'
+                              OR c.wilaya_normalized = '${wilaya}'
                           )
                     )
 
@@ -1999,7 +1999,7 @@ d["panels"] = [
 
                         cell_id AS "Cell",
                         radio AS "Radio",
-                        wilaya_name_fr AS "Wilaya",
+                        wilaya_normalized AS "Wilaya",
 
                         ROUND(availability::numeric, 2)
                             AS "Availability %",
@@ -2033,7 +2033,7 @@ d["panels"] = [
                     FROM network_state
 
                     ORDER BY
-                        wilaya_name_fr,
+                        wilaya_normalized,
                         cell_id;
                 """,
             }

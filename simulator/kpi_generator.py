@@ -25,6 +25,13 @@ def get_connection():
 
 
 def load_cells(limit=500):
+    """
+    Load a geographically distributed set of real cells.
+
+    Cells are grouped by wilaya and selected in round-robin order
+    so that the simulation represents many regions instead of being
+    dominated by the first rows in the database.
+    """
     conn = get_connection()
 
     try:
@@ -39,15 +46,41 @@ def load_cells(limit=500):
                     area,
                     cell_id,
                     longitude,
-                    latitude
+                    latitude,
+                    wilaya_name_fr
                 FROM cells
-                ORDER BY id
-                LIMIT %s;
-                """,
-                (limit,),
+                WHERE latitude IS NOT NULL
+                  AND longitude IS NOT NULL
+                  AND geo_match_status = 'MATCHED'
+                  AND wilaya_name_fr IS NOT NULL
+                ORDER BY wilaya_name_fr, RANDOM();
+                """
             )
+            rows = cursor.fetchall()
 
-            return cursor.fetchall()
+        # Group cells by wilaya.
+        by_wilaya = {}
+        for row in rows:
+            wilaya = row[8]
+            cell_tuple = row[:8]
+            by_wilaya.setdefault(wilaya, []).append(cell_tuple)
+
+        # Round-robin selection across wilayas until limit is reached.
+        selected = []
+        wilaya_lists = list(by_wilaya.values())
+        idx = 0
+        while len(selected) < limit and wilaya_lists:
+            active_lists = []
+            for cells in wilaya_lists:
+                if idx < len(cells):
+                    selected.append(cells[idx])
+                    if len(selected) == limit:
+                        break
+                    active_lists.append(cells)
+            wilaya_lists = active_lists
+            idx += 1
+
+        return selected
 
     finally:
         conn.close()
@@ -369,25 +402,26 @@ if __name__ == "__main__":
 
     try:
         while True:
-            cell = random.choice(cells)
+            random.shuffle(cells)
 
-            kpi = generate_kpi(cell)
+            for cell in cells:
+                kpi = generate_kpi(cell)
 
-            print(
-                f"[{kpi['condition']:9}] "
-                f"cell={kpi['cell_id']} | "
-                f"availability={kpi['availability']:6.2f}% | "
-                f"latency={kpi['latency_ms']:6.2f} ms | "
-                f"loss={kpi['packet_loss_pct']:5.2f}% | "
-                f"PRB={kpi['prb_utilization_pct']:5.2f}% | "
-                f"throughput={kpi['throughput_mbps']:6.2f} Mbps | "
-                f"RRC={kpi['rrc_success_rate']:5.2f}% | "
-                f"HO={kpi['handover_success_rate']:5.2f}% | "
-                f"drop={kpi['call_drop_rate']:5.2f}% | "
-                f"users={kpi['active_users']}"
-            )
+                print(
+                    f"[{kpi['condition']:9}] "
+                    f"cell={kpi['cell_id']} | "
+                    f"availability={kpi['availability']:6.2f}% | "
+                    f"latency={kpi['latency_ms']:6.2f} ms | "
+                    f"loss={kpi['packet_loss_pct']:5.2f}% | "
+                    f"PRB={kpi['prb_utilization_pct']:5.2f}% | "
+                    f"throughput={kpi['throughput_mbps']:6.2f} Mbps | "
+                    f"RRC={kpi['rrc_success_rate']:5.2f}% | "
+                    f"HO={kpi['handover_success_rate']:5.2f}% | "
+                    f"drop={kpi['call_drop_rate']:5.2f}% | "
+                    f"users={kpi['active_users']}"
+                )
 
-            time.sleep(2)
+                time.sleep(2)
 
     except KeyboardInterrupt:
         print("\nStopping simulator...")
