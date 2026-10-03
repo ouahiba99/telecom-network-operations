@@ -110,9 +110,13 @@ CREATE TABLE IF NOT EXISTS network_alarms (
 
     message TEXT NOT NULL,
 
-    status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
+    status VARCHAR(20) NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'ACKNOWLEDGED', 'RESOLVED')),
 
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    acknowledged_at TIMESTAMP WITH TIME ZONE,
+    resolved_at TIMESTAMP WITH TIME ZONE,
+    acknowledged_by VARCHAR(100),
+    resolved_by VARCHAR(100)
 );
 
 
@@ -130,4 +134,10 @@ CREATE INDEX IF NOT EXISTS idx_network_alarms_status
 
 CREATE INDEX IF NOT EXISTS idx_network_alarms_type
     ON network_alarms (alarm_type);
+
+CREATE INDEX IF NOT EXISTS idx_network_alarms_acknowledged_at
+    ON network_alarms (acknowledged_at);
+
+CREATE INDEX IF NOT EXISTS idx_network_alarms_resolved_at
+    ON network_alarms (resolved_at);
     

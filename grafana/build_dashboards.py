@@ -935,297 +935,381 @@ write_dashboard("telecom-cell-health.json", d)
 
 
 # ============================================================
-# 04 — ALARM SIGNALS
+# 04 — NOC ALARM OPERATIONS
 # ============================================================
 
 d = base_dashboard(
-    "telecom-alarm-signals",
-    "04 — Alarm Signals",
-    ["telecom", "alarms", "incidents", "thresholds"],
+    "telecom-noc-alarm-ops",
+    "04 — NOC Alarm Operations",
+    ["telecom", "alarms", "noc", "lifecycle", "incidents"],
 )
 
+# ── Status filter variable ────────────────────────────────────
+d["templating"]["list"] = [
+    {
+        "name": "alarm_status",
+        "label": "Status",
+        "type": "custom",
+        "query": "OPEN,ACKNOWLEDGED,RESOLVED,ALL",
+        "current": {"text": "OPEN", "value": "OPEN"},
+        "options": [
+            {"text": "ALL",          "value": "ALL",          "selected": False},
+            {"text": "OPEN",         "value": "OPEN",         "selected": True},
+            {"text": "ACKNOWLEDGED", "value": "ACKNOWLEDGED", "selected": False},
+            {"text": "RESOLVED",     "value": "RESOLVED",     "selected": False},
+        ],
+        "includeAll": False,
+        "multi": False,
+        "hide": 0,
+        "refresh": 0,
+        "sort": 0,
+    }
+]
+
 d["panels"] = [
+
+    # ── ROW 1: Lifecycle counts (6 stats across full width) ──────
+
     stat_panel(
         1,
-        "Critical Signals",
-        0,
-        0,
-        6,
+        "🔴  Open Alarms",
+        0, 0, 4,
         """
-        WITH latest AS (
-            SELECT DISTINCT ON (cell_db_id)
-                *
-            FROM network_kpis
-            ORDER BY cell_db_id, timestamp DESC
-        )
         SELECT COUNT(*) AS value
-        FROM latest
-        WHERE availability < 95
-           OR latency_ms > 120
-           OR packet_loss_pct > 5
-           OR prb_utilization_pct > 95
-           OR call_drop_rate > 5
-           OR rrc_success_rate < 90
-           OR handover_success_rate < 90;
+        FROM network_alarms
+        WHERE status = 'OPEN';
         """,
         "short",
         0,
     ),
     stat_panel(
         2,
-        "Warning Signals",
-        6,
-        0,
-        6,
+        "🟡  Acknowledged",
+        4, 0, 4,
         """
-        WITH latest AS (
-            SELECT DISTINCT ON (cell_db_id)
-                *
-            FROM network_kpis
-            ORDER BY cell_db_id, timestamp DESC
-        )
         SELECT COUNT(*) AS value
-        FROM latest
-        WHERE (
-            availability < 98
-            OR latency_ms > 80
-            OR packet_loss_pct > 2
-            OR prb_utilization_pct > 90
-            OR call_drop_rate > 2
-            OR rrc_success_rate < 95
-            OR handover_success_rate < 94
-        )
-        AND NOT (
-            availability < 95
-            OR latency_ms > 120
-            OR packet_loss_pct > 5
-            OR prb_utilization_pct > 95
-            OR call_drop_rate > 5
-            OR rrc_success_rate < 90
-            OR handover_success_rate < 90
-        );
+        FROM network_alarms
+        WHERE status = 'ACKNOWLEDGED';
         """,
         "short",
         0,
     ),
     stat_panel(
         3,
-        "Cells Affected",
-        12,
-        0,
-        6,
+        "🟢  Resolved",
+        8, 0, 4,
         """
-        WITH latest AS (
-            SELECT DISTINCT ON (cell_db_id)
-                *
-            FROM network_kpis
-            ORDER BY cell_db_id, timestamp DESC
-        )
         SELECT COUNT(*) AS value
-        FROM latest
-        WHERE availability < 98
-           OR latency_ms > 80
-           OR packet_loss_pct > 2
-           OR prb_utilization_pct > 90
-           OR call_drop_rate > 2
-           OR rrc_success_rate < 95
-           OR handover_success_rate < 94;
+        FROM network_alarms
+        WHERE status = 'RESOLVED';
         """,
         "short",
         0,
     ),
     stat_panel(
         4,
-        "Network Availability",
-        18,
-        0,
-        6,
+        "🚨  Critical",
+        12, 0, 4,
         """
-        SELECT COALESCE(AVG(availability), 0) AS value
-        FROM network_kpis
-        WHERE $__timeFilter(timestamp);
+        SELECT COUNT(*) AS value
+        FROM network_alarms
+        WHERE severity = 'CRITICAL'
+          AND status != 'RESOLVED';
         """,
-        "percent",
-    ),
-    table_panel(
-        5,
-        "Current Network Alert Signals",
+        "short",
         0,
+    ),
+    stat_panel(
         5,
-        24,
+        "⚠️  Major",
+        16, 0, 4,
         """
-        WITH latest AS (
-            SELECT DISTINCT ON (cell_db_id)
-                *
-            FROM network_kpis
-            ORDER BY cell_db_id, timestamp DESC
-        ),
-        signals AS (
-            SELECT cell_id, radio, timestamp,
-                   'AVAILABILITY' AS alarm,
-                   ROUND(availability::numeric, 2) AS value,
-                   '%' AS unit,
-                   CASE WHEN availability < 95 THEN 'CRITICAL' ELSE 'WARNING' END AS severity
-            FROM latest
-            WHERE availability < 98
+        SELECT COUNT(*) AS value
+        FROM network_alarms
+        WHERE severity = 'MAJOR'
+          AND status != 'RESOLVED';
+        """,
+        "short",
+        0,
+    ),
+    stat_panel(
+        6,
+        "ℹ️  Minor",
+        20, 0, 4,
+        """
+        SELECT COUNT(*) AS value
+        FROM network_alarms
+        WHERE severity = 'MINOR'
+          AND status != 'RESOLVED';
+        """,
+        "short",
+        0,
+    ),
 
-            UNION ALL
+    # ── ROW 2: MTTA / MTTR ───────────────────────────────────────
 
-            SELECT cell_id, radio, timestamp,
-                   'HIGH LATENCY',
-                   ROUND(latency_ms::numeric, 2),
-                   'ms',
-                   CASE WHEN latency_ms > 120 THEN 'CRITICAL' ELSE 'WARNING' END
-            FROM latest
-            WHERE latency_ms > 80
+    stat_panel(
+        7,
+        "⏱  Avg MTTA (s)",
+        0, 5, 6,
+        """
+        SELECT ROUND(
+            AVG(
+                EXTRACT(EPOCH FROM (acknowledged_at - created_at))
+            ) FILTER (WHERE acknowledged_at IS NOT NULL
+                        AND created_at    IS NOT NULL)::numeric,
+            1
+        ) AS value
+        FROM network_alarms;
+        """,
+        "s",
+        1,
+    ),
+    stat_panel(
+        8,
+        "⏱  Avg MTTR (s)",
+        6, 5, 6,
+        """
+        SELECT ROUND(
+            AVG(
+                EXTRACT(EPOCH FROM (resolved_at - created_at))
+            ) FILTER (WHERE resolved_at IS NOT NULL
+                        AND created_at  IS NOT NULL)::numeric,
+            1
+        ) AS value
+        FROM network_alarms;
+        """,
+        "s",
+        1,
+    ),
+    stat_panel(
+        9,
+        "📡  Affected Cells",
+        12, 5, 6,
+        """
+        SELECT COUNT(DISTINCT cell_db_id) AS value
+        FROM network_alarms
+        WHERE status != 'RESOLVED';
+        """,
+        "short",
+        0,
+    ),
+    stat_panel(
+        10,
+        "🗺  Affected Wilayas",
+        18, 5, 6,
+        """
+        SELECT COUNT(DISTINCT c.wilaya_name_fr) AS value
+        FROM network_alarms a
+        JOIN cells c ON a.cell_db_id = c.id
+        WHERE a.status != 'RESOLVED'
+          AND c.wilaya_name_fr IS NOT NULL;
+        """,
+        "short",
+        0,
+    ),
 
-            UNION ALL
+    # ── ROW 3: Alarm trend over time (full width) ────────────────
 
-            SELECT cell_id, radio, timestamp,
-                   'PACKET LOSS',
-                   ROUND(packet_loss_pct::numeric, 2),
-                   '%',
-                   CASE WHEN packet_loss_pct > 5 THEN 'CRITICAL' ELSE 'WARNING' END
-            FROM latest
-            WHERE packet_loss_pct > 2
-
-            UNION ALL
-
-            SELECT cell_id, radio, timestamp,
-                   'HIGH PRB UTILIZATION',
-                   ROUND(prb_utilization_pct::numeric, 2),
-                   '%',
-                   CASE WHEN prb_utilization_pct > 95 THEN 'CRITICAL' ELSE 'WARNING' END
-            FROM latest
-            WHERE prb_utilization_pct > 90
-
-            UNION ALL
-
-            SELECT cell_id, radio, timestamp,
-                   'CALL DROP RATE',
-                   ROUND(call_drop_rate::numeric, 2),
-                   '%',
-                   CASE WHEN call_drop_rate > 5 THEN 'CRITICAL' ELSE 'WARNING' END
-            FROM latest
-            WHERE call_drop_rate > 2
-
-            UNION ALL
-
-            SELECT cell_id, radio, timestamp,
-                   'RRC SUCCESS',
-                   ROUND(rrc_success_rate::numeric, 2),
-                   '%',
-                   CASE WHEN rrc_success_rate < 90 THEN 'CRITICAL' ELSE 'WARNING' END
-            FROM latest
-            WHERE rrc_success_rate < 95
-
-            UNION ALL
-
-            SELECT cell_id, radio, timestamp,
-                   'HANDOVER SUCCESS',
-                   ROUND(handover_success_rate::numeric, 2),
-                   '%',
-                   CASE WHEN handover_success_rate < 90 THEN 'CRITICAL' ELSE 'WARNING' END
-            FROM latest
-            WHERE handover_success_rate < 94
-        )
+    timeseries_panel(
+        11,
+        "Alarm Volume Over Time — by Severity",
+        0, 10, 24,
+        """
         SELECT
-            timestamp AS "Last Seen",
-            cell_id AS "Cell",
-            radio AS "Radio",
-            severity AS "Severity",
-            alarm AS "Alarm",
-            value AS "Value",
-            unit AS "Unit"
-        FROM signals
+            date_trunc('minute', timestamp) AS time,
+            COUNT(*) FILTER (WHERE severity = 'CRITICAL') AS "Critical",
+            COUNT(*) FILTER (WHERE severity = 'MAJOR')    AS "Major",
+            COUNT(*) FILTER (WHERE severity = 'MINOR')    AS "Minor"
+        FROM network_alarms
+        WHERE $__timeFilter(timestamp)
+        GROUP BY 1
+        ORDER BY 1;
+        """,
+        "short",
+        0,
+    ),
+
+    # ── ROW 4: Lifecycle by severity (left) + MTTA/MTTR bar (right) ──
+
+    {
+        "id": 12,
+        "type": "barchart",
+        "title": "Alarm Lifecycle by Severity",
+        "gridPos": {"x": 0, "y": 18, "w": 12, "h": 9},
+        "datasource": datasource(),
+        "targets": [
+            {
+                "refId": "A",
+                "datasource": datasource(),
+                "format": "table",
+                "rawQuery": True,
+                "rawSql": """
+        SELECT
+            severity          AS "Severity",
+            COUNT(*) FILTER (WHERE status = 'OPEN')         AS "Open",
+            COUNT(*) FILTER (WHERE status = 'ACKNOWLEDGED') AS "Acknowledged",
+            COUNT(*) FILTER (WHERE status = 'RESOLVED')     AS "Resolved"
+        FROM network_alarms
+        WHERE $__timeFilter(timestamp)
+        GROUP BY severity
         ORDER BY
             CASE severity
                 WHEN 'CRITICAL' THEN 1
-                ELSE 2
+                WHEN 'MAJOR'    THEN 2
+                WHEN 'MINOR'    THEN 3
+                ELSE 4
+            END;
+        """,
+            }
+        ],
+        "fieldConfig": {
+            "defaults": {"unit": "short"},
+            "overrides": [
+                {"matcher": {"id": "byName", "options": "Open"},
+                 "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]},
+                {"matcher": {"id": "byName", "options": "Acknowledged"},
+                 "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "yellow"}}]},
+                {"matcher": {"id": "byName", "options": "Resolved"},
+                 "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "green"}}]},
+            ],
+        },
+        "options": {
+            "xField": "Severity",
+            "stacking": {"mode": "normal", "group": "A"},
+            "legend": {"displayMode": "list", "placement": "bottom"},
+            "tooltip": {"mode": "multi"},
+        },
+    },
+
+    # ── Top 10 affected wilayas bar chart ─────────────────────────
+
+    {
+        "id": 13,
+        "type": "barchart",
+        "title": "Top 10 Affected Wilayas (Active Alarms)",
+        "gridPos": {"x": 12, "y": 18, "w": 12, "h": 9},
+        "datasource": datasource(),
+        "targets": [
+            {
+                "refId": "A",
+                "datasource": datasource(),
+                "format": "table",
+                "rawQuery": True,
+                "rawSql": """
+        SELECT
+            COALESCE(c.wilaya_name_fr, 'Unknown') AS "Wilaya",
+            COUNT(*) FILTER (WHERE a.severity = 'CRITICAL') AS "Critical",
+            COUNT(*) FILTER (WHERE a.severity = 'MAJOR')    AS "Major",
+            COUNT(*) FILTER (WHERE a.severity = 'MINOR')    AS "Minor"
+        FROM network_alarms a
+        LEFT JOIN cells c ON a.cell_db_id = c.id
+        WHERE a.status != 'RESOLVED'
+          AND $__timeFilter(a.timestamp)
+        GROUP BY c.wilaya_name_fr
+        ORDER BY (COUNT(*) FILTER (WHERE a.severity = 'CRITICAL')) DESC,
+                 COUNT(*) DESC
+        LIMIT 10;
+        """,
+            }
+        ],
+        "fieldConfig": {
+            "defaults": {"unit": "short"},
+            "overrides": [
+                {"matcher": {"id": "byName", "options": "Critical"},
+                 "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]},
+                {"matcher": {"id": "byName", "options": "Major"},
+                 "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "orange"}}]},
+                {"matcher": {"id": "byName", "options": "Minor"},
+                 "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "yellow"}}]},
+            ],
+        },
+        "options": {
+            "xField": "Wilaya",
+            "stacking": {"mode": "normal", "group": "A"},
+            "legend": {"displayMode": "list", "placement": "bottom"},
+            "tooltip": {"mode": "multi"},
+        },
+    },
+
+    # ── ROW 5: Geographic provenance table ───────────────────────
+
+    table_panel(
+        14,
+        "Geographic Context — Wilaya Coverage & Provenance",
+        0, 27, 24,
+        """
+        SELECT
+            COALESCE(c.wilaya_name_fr, 'Unknown')        AS "Wilaya (Source)",
+            COALESCE(c.wilaya_normalized, 'Unknown')     AS "Wilaya (Normalized)",
+            c.geo_match_status                           AS "Match Status",
+            COUNT(DISTINCT a.cell_db_id)                 AS "Affected Cells",
+            COUNT(*) FILTER (WHERE a.status = 'OPEN')         AS "Open",
+            COUNT(*) FILTER (WHERE a.status = 'ACKNOWLEDGED') AS "Acknowledged",
+            COUNT(*) FILTER (WHERE a.status = 'RESOLVED')     AS "Resolved",
+            COUNT(*) FILTER (WHERE a.severity = 'CRITICAL')   AS "Critical",
+            COUNT(*) FILTER (WHERE a.severity = 'MAJOR')      AS "Major"
+        FROM network_alarms a
+        JOIN cells c ON a.cell_db_id = c.id
+        WHERE $__timeFilter(a.timestamp)
+        GROUP BY
+            c.wilaya_name_fr,
+            c.wilaya_normalized,
+            c.geo_match_status
+        ORDER BY "Critical" DESC, "Open" DESC
+        LIMIT 40;
+        """,
+    ),
+
+    # ── ROW 6: Latest active alarms table (filterable by status) ─
+
+    table_panel(
+        15,
+        "Latest Active Alarms — NOC Operations View",
+        0, 36, 24,
+        """
+        SELECT
+            a.id                                         AS "ID",
+            a.timestamp                                  AS "Triggered",
+            a.cell_id                                    AS "Cell",
+            a.radio                                      AS "Radio",
+            COALESCE(c.wilaya_name_fr, 'Unknown')        AS "Wilaya",
+            a.alarm_type                                 AS "Alarm Type",
+            a.severity                                   AS "Severity",
+            a.metric                                     AS "Metric",
+            ROUND(a.metric_value::numeric, 2)            AS "Value",
+            ROUND(a.threshold_value::numeric, 2)         AS "Threshold",
+            a.status                                     AS "Status",
+            a.acknowledged_by                            AS "Ack'd By",
+            a.acknowledged_at                            AS "Ack'd At",
+            a.resolved_by                                AS "Resolved By",
+            a.resolved_at                                AS "Resolved At",
+            ROUND(
+                EXTRACT(EPOCH FROM (
+                    COALESCE(a.resolved_at, NOW()) - a.created_at
+                ))::numeric / 60,
+            1)                                           AS "Age (min)"
+        FROM network_alarms a
+        LEFT JOIN cells c ON a.cell_db_id = c.id
+        WHERE $__timeFilter(a.timestamp)
+          AND (
+              '$alarm_status' = 'ALL'
+              OR a.status = '$alarm_status'
+          )
+        ORDER BY
+            CASE a.severity
+                WHEN 'CRITICAL' THEN 1
+                WHEN 'MAJOR'    THEN 2
+                WHEN 'MINOR'    THEN 3
+                ELSE 4
             END,
-            timestamp DESC
-        LIMIT 50;
+            a.timestamp DESC
+        LIMIT 100;
         """,
-    ),
-    timeseries_panel(
-        6,
-        "Latency — Alarm Context",
-        0,
-        14,
-        12,
-        """
-        SELECT
-            date_trunc('minute', timestamp) AS time,
-            AVG(latency_ms) AS "Latency",
-            80 AS "Warning Threshold",
-            120 AS "Critical Threshold"
-        FROM network_kpis
-        WHERE $__timeFilter(timestamp)
-        GROUP BY 1
-        ORDER BY 1;
-        """,
-        "ms",
-    ),
-    timeseries_panel(
-        7,
-        "PRB Utilization — Congestion Context",
-        12,
-        14,
-        12,
-        """
-        SELECT
-            date_trunc('minute', timestamp) AS time,
-            AVG(prb_utilization_pct) AS "PRB",
-            90 AS "Warning Threshold",
-            95 AS "Critical Threshold"
-        FROM network_kpis
-        WHERE $__timeFilter(timestamp)
-        GROUP BY 1
-        ORDER BY 1;
-        """,
-        "percent",
-    ),
-    timeseries_panel(
-        8,
-        "Packet Loss — Alarm Context",
-        0,
-        22,
-        12,
-        """
-        SELECT
-            date_trunc('minute', timestamp) AS time,
-            AVG(packet_loss_pct) AS "Packet Loss",
-            2 AS "Warning Threshold",
-            5 AS "Critical Threshold"
-        FROM network_kpis
-        WHERE $__timeFilter(timestamp)
-        GROUP BY 1
-        ORDER BY 1;
-        """,
-        "percent",
-    ),
-    timeseries_panel(
-        9,
-        "Call Drop Rate — Alarm Context",
-        12,
-        22,
-        12,
-        """
-        SELECT
-            date_trunc('minute', timestamp) AS time,
-            AVG(call_drop_rate) AS "Call Drop",
-            2 AS "Warning Threshold",
-            5 AS "Critical Threshold"
-        FROM network_kpis
-        WHERE $__timeFilter(timestamp)
-        GROUP BY 1
-        ORDER BY 1;
-        """,
-        "percent",
     ),
 ]
 
-write_dashboard("telecom-alarm-signals.json", d)
+write_dashboard("telecom-noc-alarm-ops.json", d)
 
 
 # ============================================================

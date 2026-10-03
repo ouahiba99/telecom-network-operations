@@ -23,11 +23,11 @@
     {
       "id": 1,
       "type": "stat",
-      "title": "Open Alarms",
+      "title": "\ud83d\udd34  Open Alarms",
       "gridPos": {
         "x": 0,
         "y": 0,
-        "w": 5,
+        "w": 4,
         "h": 5
       },
       "datasource": {
@@ -71,11 +71,11 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Acknowledged",
+      "title": "\ud83d\udfe1  Acknowledged",
       "gridPos": {
-        "x": 5,
+        "x": 4,
         "y": 0,
-        "w": 5,
+        "w": 4,
         "h": 5
       },
       "datasource": {
@@ -119,9 +119,9 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "Resolved",
+      "title": "\ud83d\udfe2  Resolved",
       "gridPos": {
-        "x": 10,
+        "x": 8,
         "y": 0,
         "w": 4,
         "h": 5
@@ -167,11 +167,11 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Critical",
+      "title": "\ud83d\udea8  Critical",
       "gridPos": {
-        "x": 14,
+        "x": 12,
         "y": 0,
-        "w": 5,
+        "w": 4,
         "h": 5
       },
       "datasource": {
@@ -187,7 +187,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "\n        SELECT COUNT(*) AS value\n        FROM network_alarms\n        WHERE severity = 'CRITICAL';\n        "
+          "rawSql": "\n        SELECT COUNT(*) AS value\n        FROM network_alarms\n        WHERE severity = 'CRITICAL'\n          AND status != 'RESOLVED';\n        "
         }
       ],
       "fieldConfig": {
@@ -215,11 +215,11 @@
     {
       "id": 5,
       "type": "stat",
-      "title": "Major",
+      "title": "\u26a0\ufe0f  Major",
       "gridPos": {
-        "x": 19,
+        "x": 16,
         "y": 0,
-        "w": 5,
+        "w": 4,
         "h": 5
       },
       "datasource": {
@@ -235,7 +235,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "\n        SELECT COUNT(*) AS value\n        FROM network_alarms\n        WHERE severity = 'MAJOR';\n        "
+          "rawSql": "\n        SELECT COUNT(*) AS value\n        FROM network_alarms\n        WHERE severity = 'MAJOR'\n          AND status != 'RESOLVED';\n        "
         }
       ],
       "fieldConfig": {
@@ -263,11 +263,11 @@
     {
       "id": 6,
       "type": "stat",
-      "title": "Average MTTA",
+      "title": "\u2139\ufe0f  Minor",
       "gridPos": {
-        "x": 0,
-        "y": 4,
-        "w": 12,
+        "x": 20,
+        "y": 0,
+        "w": 4,
         "h": 5
       },
       "datasource": {
@@ -283,13 +283,13 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "\n        SELECT ROUND(\n            (AVG(EXTRACT(EPOCH FROM (acknowledged_at - created_at)))\n             FILTER (WHERE acknowledged_at IS NOT NULL\n                       AND created_at IS NOT NULL)\n            / 60.0)::numeric,\n            2\n        ) AS value\n        FROM network_alarms;\n        "
+          "rawSql": "\n        SELECT COUNT(*) AS value\n        FROM network_alarms\n        WHERE severity = 'MINOR'\n          AND status != 'RESOLVED';\n        "
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "m",
-          "decimals": 2
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
@@ -311,11 +311,11 @@
     {
       "id": 7,
       "type": "stat",
-      "title": "Average MTTR",
+      "title": "\u23f1  Avg MTTA (s)",
       "gridPos": {
-        "x": 12,
-        "y": 4,
-        "w": 12,
+        "x": 0,
+        "y": 5,
+        "w": 6,
         "h": 5
       },
       "datasource": {
@@ -331,13 +331,13 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "\n        SELECT ROUND(\n            (AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)))\n             FILTER (WHERE resolved_at IS NOT NULL\n                       AND created_at IS NOT NULL)\n            / 60.0)::numeric,\n            2\n        ) AS value\n        FROM network_alarms;\n        "
+          "rawSql": "\n        SELECT ROUND(\n            AVG(\n                EXTRACT(EPOCH FROM (acknowledged_at - created_at))\n            ) FILTER (WHERE acknowledged_at IS NOT NULL\n                        AND created_at    IS NOT NULL)::numeric,\n            1\n        ) AS value\n        FROM network_alarms;\n        "
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "m",
-          "decimals": 2
+          "unit": "s",
+          "decimals": 1
         },
         "overrides": []
       },
@@ -358,11 +358,155 @@
     },
     {
       "id": 8,
+      "type": "stat",
+      "title": "\u23f1  Avg MTTR (s)",
+      "gridPos": {
+        "x": 6,
+        "y": 5,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT ROUND(\n            AVG(\n                EXTRACT(EPOCH FROM (resolved_at - created_at))\n            ) FILTER (WHERE resolved_at IS NOT NULL\n                        AND created_at  IS NOT NULL)::numeric,\n            1\n        ) AS value\n        FROM network_alarms;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "\ud83d\udce1  Affected Cells",
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT COUNT(DISTINCT cell_db_id) AS value\n        FROM network_alarms\n        WHERE status != 'RESOLVED';\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "\ud83d\uddfa  Affected Wilayas",
+      "gridPos": {
+        "x": 18,
+        "y": 5,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT COUNT(DISTINCT c.wilaya_name_fr) AS value\n        FROM network_alarms a\n        JOIN cells c ON a.cell_db_id = c.id\n        WHERE a.status != 'RESOLVED'\n          AND c.wilaya_name_fr IS NOT NULL;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 11,
       "type": "timeseries",
-      "title": "Alarm Activity Over Time",
+      "title": "Alarm Volume Over Time \u2014 by Severity",
       "gridPos": {
         "x": 0,
-        "y": 8,
+        "y": 10,
         "w": 24,
         "h": 8
       },
@@ -379,7 +523,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "\n        SELECT\n            $__timeGroupAlias(timestamp, '5m'),\n            COUNT(*) FILTER (WHERE severity = 'CRITICAL') AS \"Critical\",\n            COUNT(*) FILTER (WHERE severity = 'MAJOR')    AS \"Major\",\n            COUNT(*) FILTER (WHERE severity = 'MINOR')    AS \"Minor\"\n        FROM network_alarms\n        WHERE $__timeFilter(timestamp)\n        GROUP BY 1\n        ORDER BY 1;\n        "
+          "rawSql": "\n        SELECT\n            date_trunc('minute', timestamp) AS time,\n            COUNT(*) FILTER (WHERE severity = 'CRITICAL') AS \"Critical\",\n            COUNT(*) FILTER (WHERE severity = 'MAJOR')    AS \"Major\",\n            COUNT(*) FILTER (WHERE severity = 'MINOR')    AS \"Minor\"\n        FROM network_alarms\n        WHERE $__timeFilter(timestamp)\n        GROUP BY 1\n        ORDER BY 1;\n        "
         }
       ],
       "fieldConfig": {
@@ -405,14 +549,14 @@
       }
     },
     {
-      "id": 9,
+      "id": 12,
       "type": "barchart",
-      "title": "Alarm Lifecycle Distribution",
+      "title": "Alarm Lifecycle by Severity",
       "gridPos": {
         "x": 0,
-        "y": 16,
+        "y": 18,
         "w": 12,
-        "h": 8
+        "h": 9
       },
       "datasource": {
         "type": "postgres",
@@ -427,7 +571,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "\n        SELECT\n            status AS \"Status\",\n            COUNT(*) AS \"Count\"\n        FROM network_alarms\n        GROUP BY status\n        ORDER BY status;\n        "
+          "rawSql": "\n        SELECT\n            severity          AS \"Severity\",\n            COUNT(*) FILTER (WHERE status = 'OPEN')         AS \"Open\",\n            COUNT(*) FILTER (WHERE status = 'ACKNOWLEDGED') AS \"Acknowledged\",\n            COUNT(*) FILTER (WHERE status = 'RESOLVED')     AS \"Resolved\"\n        FROM network_alarms\n        WHERE $__timeFilter(timestamp)\n        GROUP BY severity\n        ORDER BY\n            CASE severity\n                WHEN 'CRITICAL' THEN 1\n                WHEN 'MAJOR'    THEN 2\n                WHEN 'MINOR'    THEN 3\n                ELSE 4\n            END;\n        "
         }
       ],
       "fieldConfig": {
@@ -437,11 +581,8 @@
         "overrides": [
           {
             "matcher": {
-              "id": "byValue",
-              "options": {
-                "op": "=",
-                "value": "OPEN"
-              }
+              "id": "byName",
+              "options": "Open"
             },
             "properties": [
               {
@@ -456,94 +597,29 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Count"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 80
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "xField": "Status",
-        "stacking": {
-          "mode": "none"
-        },
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single"
-        },
-        "barWidth": 0.6,
-        "fillOpacity": 80
-      }
-    },
-    {
-      "id": 10,
-      "type": "barchart",
-      "title": "Severity Distribution",
-      "gridPos": {
-        "x": 12,
-        "y": 16,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "postgres",
-        "uid": "telecom-postgres"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "postgres",
-            "uid": "telecom-postgres"
-          },
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "\n        SELECT\n            severity AS \"Severity\",\n            COUNT(*) AS \"Count\"\n        FROM network_alarms\n        GROUP BY severity\n        ORDER BY\n            CASE severity\n                WHEN 'CRITICAL' THEN 1\n                WHEN 'MAJOR'    THEN 2\n                WHEN 'MINOR'    THEN 3\n                ELSE 4\n            END;\n        "
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Count"
+              "options": "Acknowledged"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
-                  "mode": "thresholds"
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
                 }
-              },
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Resolved"
+            },
+            "properties": [
               {
-                "id": "thresholds",
+                "id": "color",
                 "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "yellow",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 1000
-                    },
-                    {
-                      "color": "red",
-                      "value": 5000
-                    }
-                  ]
+                  "mode": "fixed",
+                  "fixedColor": "green"
                 }
               }
             ]
@@ -553,28 +629,27 @@
       "options": {
         "xField": "Severity",
         "stacking": {
-          "mode": "none"
+          "mode": "normal",
+          "group": "A"
         },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
-        },
-        "barWidth": 0.6,
-        "fillOpacity": 80
+          "mode": "multi"
+        }
       }
     },
     {
-      "id": 11,
+      "id": 13,
       "type": "barchart",
-      "title": "Alarms by Wilaya",
+      "title": "Top 10 Affected Wilayas (Active Alarms)",
       "gridPos": {
-        "x": 0,
-        "y": 24,
-        "w": 24,
-        "h": 8
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 9
       },
       "datasource": {
         "type": "postgres",
@@ -589,7 +664,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "\n        SELECT\n            COALESCE(c.wilaya_normalized, 'Unknown') AS \"Wilaya\",\n            COUNT(*) FILTER (WHERE a.severity = 'CRITICAL') AS \"Critical\",\n            COUNT(*) FILTER (WHERE a.severity = 'MAJOR')    AS \"Major\",\n            COUNT(*) FILTER (WHERE a.severity = 'MINOR')    AS \"Minor\"\n        FROM network_alarms a\n        JOIN cells c ON c.id = a.cell_db_id\n        WHERE c.wilaya_normalized IS NOT NULL\n          AND $__timeFilter(a.timestamp)\n        GROUP BY c.wilaya_normalized\n        ORDER BY\n            COUNT(*) FILTER (WHERE a.severity = 'CRITICAL') DESC,\n            COUNT(*) DESC\n        LIMIT 20;\n        "
+          "rawSql": "\n        SELECT\n            COALESCE(c.wilaya_name_fr, 'Unknown') AS \"Wilaya\",\n            COUNT(*) FILTER (WHERE a.severity = 'CRITICAL') AS \"Critical\",\n            COUNT(*) FILTER (WHERE a.severity = 'MAJOR')    AS \"Major\",\n            COUNT(*) FILTER (WHERE a.severity = 'MINOR')    AS \"Minor\"\n        FROM network_alarms a\n        LEFT JOIN cells c ON a.cell_db_id = c.id\n        WHERE a.status != 'RESOLVED'\n          AND $__timeFilter(a.timestamp)\n        GROUP BY c.wilaya_name_fr\n        ORDER BY (COUNT(*) FILTER (WHERE a.severity = 'CRITICAL')) DESC,\n                 COUNT(*) DESC\n        LIMIT 10;\n        "
         }
       ],
       "fieldConfig": {
@@ -656,18 +731,16 @@
         },
         "tooltip": {
           "mode": "multi"
-        },
-        "barWidth": 0.7,
-        "fillOpacity": 80
+        }
       }
     },
     {
-      "id": 12,
+      "id": 14,
       "type": "table",
-      "title": "Active Alarms \u2014 NOC Operations View",
+      "title": "Geographic Context \u2014 Wilaya Coverage & Provenance",
       "gridPos": {
         "x": 0,
-        "y": 32,
+        "y": 27,
         "w": 24,
         "h": 9
       },
@@ -684,7 +757,54 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "\n        SELECT\n            a.timestamp                                     AS \"Time\",\n            a.cell_id                                       AS \"Cell\",\n            COALESCE(c.wilaya_normalized, 'Unknown')        AS \"Wilaya\",\n            a.radio                                         AS \"Radio\",\n            a.alarm_type                                    AS \"Alarm Type\",\n            a.severity                                      AS \"Severity\",\n            a.metric                                        AS \"Metric\",\n            ROUND(a.metric_value::numeric,    2)            AS \"Value\",\n            ROUND(a.threshold_value::numeric, 2)            AS \"Threshold\",\n            a.status                                        AS \"Status\",\n            a.acknowledged_by                               AS \"Ack'd By\",\n            a.acknowledged_at                               AS \"Ack'd At\",\n            c.wilaya_name_fr                                AS \"Source Wilaya\",\n            c.geo_match_status                              AS \"Geo Status\",\n            a.created_at                                    AS \"Created\"\n        FROM network_alarms a\n        JOIN cells c ON c.id = a.cell_db_id\n        WHERE a.status IN ('OPEN', 'ACKNOWLEDGED')\n          AND (\n              '$alarm_status' = 'All'\n              OR a.status = '$alarm_status'\n          )\n          AND (\n              '$alarm_severity' = 'All'\n              OR a.severity = '$alarm_severity'\n          )\n        ORDER BY\n            CASE a.severity\n                WHEN 'CRITICAL' THEN 1\n                WHEN 'MAJOR'    THEN 2\n                WHEN 'MINOR'    THEN 3\n                ELSE 4\n            END,\n            a.timestamp DESC\n        LIMIT 100;\n        "
+          "rawSql": "\n        SELECT\n            COALESCE(c.wilaya_name_fr, 'Unknown')        AS \"Wilaya (Source)\",\n            COALESCE(c.wilaya_normalized, 'Unknown')     AS \"Wilaya (Normalized)\",\n            c.geo_match_status                           AS \"Match Status\",\n            COUNT(DISTINCT a.cell_db_id)                 AS \"Affected Cells\",\n            COUNT(*) FILTER (WHERE a.status = 'OPEN')         AS \"Open\",\n            COUNT(*) FILTER (WHERE a.status = 'ACKNOWLEDGED') AS \"Acknowledged\",\n            COUNT(*) FILTER (WHERE a.status = 'RESOLVED')     AS \"Resolved\",\n            COUNT(*) FILTER (WHERE a.severity = 'CRITICAL')   AS \"Critical\",\n            COUNT(*) FILTER (WHERE a.severity = 'MAJOR')      AS \"Major\"\n        FROM network_alarms a\n        JOIN cells c ON a.cell_db_id = c.id\n        WHERE $__timeFilter(a.timestamp)\n        GROUP BY\n            c.wilaya_name_fr,\n            c.wilaya_normalized,\n            c.geo_match_status\n        ORDER BY \"Critical\" DESC, \"Open\" DESC\n        LIMIT 40;\n        "
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      }
+    },
+    {
+      "id": 15,
+      "type": "table",
+      "title": "Latest Active Alarms \u2014 NOC Operations View",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "telecom-postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "telecom-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "\n        SELECT\n            a.id                                         AS \"ID\",\n            a.timestamp                                  AS \"Triggered\",\n            a.cell_id                                    AS \"Cell\",\n            a.radio                                      AS \"Radio\",\n            COALESCE(c.wilaya_name_fr, 'Unknown')        AS \"Wilaya\",\n            a.alarm_type                                 AS \"Alarm Type\",\n            a.severity                                   AS \"Severity\",\n            a.metric                                     AS \"Metric\",\n            ROUND(a.metric_value::numeric, 2)            AS \"Value\",\n            ROUND(a.threshold_value::numeric, 2)         AS \"Threshold\",\n            a.status                                     AS \"Status\",\n            a.acknowledged_by                            AS \"Ack'd By\",\n            a.acknowledged_at                            AS \"Ack'd At\",\n            a.resolved_by                                AS \"Resolved By\",\n            a.resolved_at                                AS \"Resolved At\",\n            ROUND(\n                EXTRACT(EPOCH FROM (\n                    COALESCE(a.resolved_at, NOW()) - a.created_at\n                ))::numeric / 60,\n            1)                                           AS \"Age (min)\"\n        FROM network_alarms a\n        LEFT JOIN cells c ON a.cell_db_id = c.id\n        WHERE $__timeFilter(a.timestamp)\n          AND (\n              '$alarm_status' = 'ALL'\n              OR a.status = '$alarm_status'\n          )\n        ORDER BY\n            CASE a.severity\n                WHEN 'CRITICAL' THEN 1\n                WHEN 'MAJOR'    THEN 2\n                WHEN 'MINOR'    THEN 3\n                ELSE 4\n            END,\n            a.timestamp DESC\n        LIMIT 100;\n        "
         }
       ],
       "fieldConfig": {
@@ -725,21 +845,21 @@
         "name": "alarm_status",
         "label": "Status",
         "type": "custom",
-        "query": "All,OPEN,ACKNOWLEDGED,RESOLVED",
+        "query": "OPEN,ACKNOWLEDGED,RESOLVED,ALL",
         "current": {
-          "text": "All",
-          "value": "All"
+          "text": "OPEN",
+          "value": "OPEN"
         },
         "options": [
           {
-            "text": "All",
-            "value": "All",
-            "selected": true
+            "text": "ALL",
+            "value": "ALL",
+            "selected": false
           },
           {
             "text": "OPEN",
             "value": "OPEN",
-            "selected": false
+            "selected": true
           },
           {
             "text": "ACKNOWLEDGED",
@@ -749,43 +869,6 @@
           {
             "text": "RESOLVED",
             "value": "RESOLVED",
-            "selected": false
-          }
-        ],
-        "includeAll": false,
-        "multi": false,
-        "hide": 0,
-        "refresh": 0,
-        "sort": 0
-      },
-      {
-        "name": "alarm_severity",
-        "label": "Severity",
-        "type": "custom",
-        "query": "All,CRITICAL,MAJOR,MINOR",
-        "current": {
-          "text": "All",
-          "value": "All"
-        },
-        "options": [
-          {
-            "text": "All",
-            "value": "All",
-            "selected": true
-          },
-          {
-            "text": "CRITICAL",
-            "value": "CRITICAL",
-            "selected": false
-          },
-          {
-            "text": "MAJOR",
-            "value": "MAJOR",
-            "selected": false
-          },
-          {
-            "text": "MINOR",
-            "value": "MINOR",
             "selected": false
           }
         ],
@@ -820,8 +903,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "04 \u2014 Alarm Signals",
-  "uid": "telecom-alarm-signals",
+  "title": "04 \u2014 NOC Alarm Operations",
+  "uid": "telecom-noc-alarm-ops",
   "version": 1,
   "weekStart": "",
   "folderUid": "telecom-noc-folder"
